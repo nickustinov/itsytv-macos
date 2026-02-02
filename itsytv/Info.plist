@@ -14,6 +14,10 @@
 	<string>1</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSLocalNetworkUsageDescription</key>

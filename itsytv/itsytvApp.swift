@@ -2,20 +2,22 @@ import SwiftUI
 
 @main
 struct itsytvApp: App {
-    @State private var manager = AppleTVManager()
-    @State private var iconLoader = AppIconLoader()
+    @NSApplicationDelegateAdaptor private var appDelegate: AppDelegate
 
     var body: some Scene {
-        MenuBarExtra("itsytv", systemImage: "appletv") {
-            MenuBarView()
-                .environment(manager)
-                .environment(iconLoader)
-        }
-        .menuBarExtraStyle(.window)
-
         Settings {
             SettingsView()
-                .environment(manager)
+                .environment(appDelegate.manager)
         }
+    }
+}
+
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    let manager = AppleTVManager()
+    let iconLoader = AppIconLoader()
+    var appController: AppController?
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        appController = AppController(manager: manager, iconLoader: iconLoader)
     }
 }

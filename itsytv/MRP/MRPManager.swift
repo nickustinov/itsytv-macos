@@ -13,6 +13,7 @@ private let log = Logger(subsystem: "com.itsytv.app", category: "MRP")
 final class MRPManager {
     var nowPlaying: NowPlayingState?
     var supportedCommands: Set<MRP_Command> = []
+    var onDisconnect: ((Error?) -> Void)?
 
     private var tunnel: AirPlayMRPTunnel?
     private var credentials: HAPCredentials?
@@ -44,6 +45,7 @@ final class MRPManager {
             DispatchQueue.main.async {
                 self?.nowPlaying = nil
                 self?.supportedCommands = []
+                self?.onDisconnect?(error)
             }
         }
 

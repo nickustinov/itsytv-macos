@@ -1,0 +1,122 @@
+import AppKit
+
+class HighlightingMenuItemView: NSView {
+
+    var onAction: (() -> Void)?
+    var onMouseEnter: (() -> Void)?
+    var onMouseExit: (() -> Void)?
+    var closesMenuOnAction: Bool = true
+
+    private var isMouseInside = false
+    private var trackingArea: NSTrackingArea?
+    private var originalTextColors: [ObjectIdentifier: NSColor] = [:]
+    private var originalTintColors: [ObjectIdentifier: NSColor] = [:]
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let existing = trackingArea {
+            removeTrackingArea(existing)
+        }
+        let area = NSTrackingArea(
+            rect: bounds,
+            options: [.mouseEnteredAndExited, .activeAlways],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(area)
+        trackingArea = area
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if isMouseInside {
+            isMouseInside = false
+            updateTextColors(highlighted: false)
+            needsDisplay = true
+        }
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        isMouseInside = true
+        updateTextColors(highlighted: true)
+        needsDisplay = true
+        onMouseEnter?()
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        isMouseInside = false
+        updateTextColors(highlighted: false)
+        needsDisplay = true
+        onMouseExit?()
+    }
+
+    private func updateTextColors(highlighted: Bool) {
+        updateSubviewColors(in: self, highlighted: highlighted)
+    }
+
+    private func updateSubviewColors(in view: NSView, highlighted: Bool) {
+        for subview in view.subviews {
+            if let textField = subview as? NSTextField {
+                let key = ObjectIdentifier(textField)
+                if highlighted {
+                    if originalTextColors[key] == nil {
+                        originalTextColors[key] = textField.textColor
+                    }
+                    textField.textColor = .selectedMenuItemTextColor
+                } else if let original = originalTextColors[key] {
+                    textField.textColor = original
+                }
+            } else if let imageView = subview as? NSImageView {
+                let key = ObjectIdentifier(imageView)
+                if highlighted {
+                    if originalTintColors[key] == nil {
+                        originalTintColors[key] = imageView.contentTintColor
+                    }
+                    imageView.contentTintColor = .selectedMenuItemTextColor
+                } else if let original = originalTintColors[key] {
+                    imageView.contentTintColor = original
+                }
+            } else if let button = subview as? NSButton {
+                let key = ObjectIdentifier(button)
+                if highlighted {
+                    if originalTintColors[key] == nil {
+                        originalTintColors[key] = button.contentTintColor
+                    }
+                    button.contentTintColor = .selectedMenuItemTextColor
+                } else if let original = originalTintColors[key] {
+                    button.contentTintColor = original
+                }
+            }
+
+            if !(subview is NSControl) {
+                updateSubviewColors(in: subview, highlighted: highlighted)
+            }
+        }
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        guard let action = onAction else { return }
+        if closesMenuOnAction {
+            isMouseInside = false
+            updateTextColors(highlighted: false)
+            needsDisplay = true
+            enclosingMenuItem?.menu?.cancelTracking()
+            action()
+        } else {
+            updateTextColors(highlighted: false)
+            action()
+            originalTextColors.removeAll()
+            originalTintColors.removeAll()
+            updateTextColors(highlighted: true)
+            needsDisplay = true
+        }
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        if isMouseInside {
+            let rect = bounds.insetBy(dx: 4, dy: 0)
+            NSColor.selectedContentBackgroundColor.setFill()
+            NSBezierPath(roundedRect: rect, xRadius: 4, yRadius: 4).fill()
+        }
+    }
+}

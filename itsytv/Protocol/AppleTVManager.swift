@@ -51,13 +51,20 @@ final class AppleTVManager {
 
         conn.onDisconnect = { [weak self] error in
             DispatchQueue.main.async {
-                if let error {
-                    self?.connectionStatus = .error(error.localizedDescription)
-                } else {
-                    self?.connectionStatus = .disconnected
+                guard let self else { return }
+                // Once connected, MRP runs over the AirPlay tunnel — the companion
+                // link TCP connection closing is expected and should be ignored.
+                if self.connectionStatus == .connected {
+                    log.info("Companion link closed while MRP tunnel active — ignoring")
+                    return
                 }
-                self?.connectedDeviceName = nil
-                self?.connectedDevice = nil
+                if let error {
+                    self.connectionStatus = .error(error.localizedDescription)
+                } else {
+                    self.connectionStatus = .disconnected
+                }
+                self.connectedDeviceName = nil
+                self.connectedDevice = nil
             }
         }
 
@@ -338,6 +345,16 @@ final class AppleTVManager {
         // AirPlay runs on port 7000 on the same host as companion-link
         let airplayPort: UInt16 = 7000
         log.info("Starting MRP via AirPlay tunnel: \(device.host):\(airplayPort)")
+        mrpManager.onDisconnect = { [weak self] error in
+            guard let self else { return }
+            // MRP tunnel dropped — this is the real connection loss
+            if self.connectionStatus == .connected {
+                log.info("MRP tunnel lost — disconnecting")
+                self.connectionStatus = .disconnected
+                self.connectedDeviceName = nil
+                self.connectedDevice = nil
+            }
+        }
         mrpManager.connect(host: device.host, port: airplayPort, credentials: creds)
     }
 

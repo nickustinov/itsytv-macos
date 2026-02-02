@@ -1,139 +1,5 @@
 import SwiftUI
 
-struct MenuBarView: View {
-    @Environment(AppleTVManager.self) private var manager
-
-    var body: some View {
-        VStack(spacing: 0) {
-            switch manager.connectionStatus {
-            case .disconnected:
-                DeviceListView()
-            case .connecting:
-                ProgressView("Connecting...")
-                    .padding()
-            case .pairing:
-                PairingView()
-            case .connected:
-                RemoteControlView()
-            case .error(let message):
-                ErrorView(message: message)
-            }
-        }
-        .frame(width: 280)
-        .onAppear {
-            manager.startScanning()
-        }
-    }
-}
-
-struct DeviceListView: View {
-    @Environment(AppleTVManager.self) private var manager
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("Apple TVs")
-                    .font(.headline)
-                Spacer()
-                if manager.isScanning {
-                    ProgressView()
-                        .scaleEffect(0.6)
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 12)
-
-            if manager.discoveredDevices.isEmpty {
-                Text("Scanning for devices...")
-                    .foregroundStyle(.secondary)
-                    .font(.subheadline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 24)
-            } else {
-                ForEach(manager.discoveredDevices) { device in
-                    DeviceRow(device: device) {
-                        manager.connect(to: device)
-                    }
-                }
-            }
-
-            Divider()
-
-            Button("Quit itsytv") {
-                NSApplication.shared.terminate(nil)
-            }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 8)
-        }
-    }
-}
-
-struct DeviceRow: View {
-    let device: AppleTVDevice
-    let onTap: () -> Void
-
-    var body: some View {
-        Button(action: onTap) {
-            HStack {
-                Image(systemName: "appletv.fill")
-                    .foregroundStyle(.secondary)
-                Text(device.name)
-                    .font(.body)
-                Spacer()
-                if KeychainStorage.load(for: device.id) != nil {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                        .font(.caption)
-                } else {
-                    Image(systemName: "chevron.right")
-                        .foregroundStyle(.tertiary)
-                        .font(.caption)
-                }
-            }
-            .contentShape(Rectangle())
-            .padding(.horizontal, 16)
-            .padding(.vertical, 6)
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-struct PairingView: View {
-    @Environment(AppleTVManager.self) private var manager
-    @State private var pin: String = ""
-
-    var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "appletv.fill")
-                .font(.largeTitle)
-                .foregroundStyle(.secondary)
-
-            Text("Enter the PIN shown\non your Apple TV")
-                .multilineTextAlignment(.center)
-                .font(.subheadline)
-
-            TextField("0000", text: $pin)
-                .textFieldStyle(.roundedBorder)
-                .multilineTextAlignment(.center)
-                .frame(width: 120)
-                .font(.title2.monospacedDigit())
-
-            HStack(spacing: 12) {
-                Button("Cancel") {
-                    manager.disconnect()
-                }
-
-                Button("Pair") {
-                    manager.submitPIN(pin)
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(pin.count != 4)
-            }
-        }
-        .padding(24)
-    }
-}
-
 enum RemoteTab: String, CaseIterable {
     case remote = "Remote"
     case apps = "Apps"
@@ -143,46 +9,58 @@ struct RemoteControlView: View {
     @Environment(AppleTVManager.self) private var manager
     @State private var selectedTab: RemoteTab = .remote
 
+    private var isConnected: Bool {
+        manager.connectionStatus == .connected
+    }
+
     var body: some View {
-        VStack(spacing: 12) {
-            // Header
-            HStack {
-                Image(systemName: "appletv.fill")
-                    .foregroundStyle(.green)
+        VStack(spacing: 10) {
+            // Header — always interactive
+            HStack(spacing: 8) {
                 Text(manager.connectedDeviceName ?? "Apple TV")
                     .font(.subheadline)
+                    .lineLimit(1)
                 Spacer()
-                Button {
-                    manager.disconnect()
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.secondary)
+                PanelCloseButton { manager.disconnect() }
+            }
+            .padding(.horizontal, 12)
+            .padding(.top, 8)
+
+            // Controls — dimmed while connecting
+            VStack(spacing: 10) {
+                // Tab picker
+                CapsuleSegmentPicker(
+                    selection: $selectedTab,
+                    options: RemoteTab.allCases.map { ($0, $0.rawValue) }
+                )
+                .padding(.horizontal, 12)
+
+                // Power button (Control Center) — right aligned
+                HStack {
+                    Spacer()
+                    Button { manager.pressButton(.pageDown) } label: {
+                        Image(systemName: "power")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 24, height: 24)
+                            .background(Circle().fill(Color.secondary.opacity(0.12)))
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 12)
+                .padding(.horizontal, 12)
 
-            // Tab picker
-            Picker("", selection: $selectedTab) {
-                ForEach(RemoteTab.allCases, id: \.self) { tab in
-                    Text(tab.rawValue).tag(tab)
+                switch selectedTab {
+                case .remote:
+                    RemoteTabContent()
+                case .apps:
+                    AppGridView()
                 }
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal, 16)
 
-            switch selectedTab {
-            case .remote:
-                RemoteTabContent()
-            case .apps:
-                AppGridView()
-            }
-
-            // Now playing bar
-            if manager.mrpManager.nowPlaying != nil {
+                // Now playing bar — always visible
                 NowPlayingBar()
             }
+            .opacity(isConnected ? 1 : 0.4)
+            .allowsHitTesting(isConnected)
         }
     }
 }
@@ -192,86 +70,98 @@ struct NowPlayingBar: View {
 
     var body: some View {
         let mrp = manager.mrpManager
-        if let np = mrp.nowPlaying {
-            VStack(spacing: 6) {
-                Divider()
+        let np = mrp.nowPlaying
+        let hasContent = np != nil
 
-                // Artwork + title + artist
-                HStack(spacing: 10) {
-                    if let data = np.artworkData, let image = NSImage(data: data) {
-                        Image(nsImage: image)
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(width: 40, height: 40)
-                            .cornerRadius(4)
-                    }
+        VStack(spacing: 6) {
+            Divider()
 
-                    VStack(spacing: 2) {
-                        Text(np.title ?? "Unknown")
-                            .font(.caption.bold())
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-
-                        if np.artist != nil || np.album != nil {
-                            Text([np.artist, np.album].compactMap { $0 }.joined(separator: " — "))
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                    }
+            // Artwork + title + artist
+            HStack(spacing: 8) {
+                if let data = np?.artworkData, let image = NSImage(data: data) {
+                    Image(nsImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 36, height: 36)
+                        .cornerRadius(4)
+                } else {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(.quaternary)
+                        .frame(width: 36, height: 36)
                 }
-                .padding(.horizontal, 16)
 
-                // Controls
-                HStack(spacing: 24) {
-                    Button {
-                        mrp.sendCommand(.previousTrack)
-                    } label: {
-                        Image(systemName: "backward.fill")
-                            .font(.system(size: 14))
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(!mrp.supportedCommands.contains(.previousTrack))
+                VStack(spacing: 2) {
+                    Text(np?.title ?? " ")
+                        .font(.caption.bold())
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .frame(maxWidth: .infinity, alignment: .leading)
 
-                    Button {
-                        mrp.sendCommand(.togglePlayPause)
-                    } label: {
-                        Image(systemName: np.isPlaying ? "pause.fill" : "play.fill")
-                            .font(.system(size: 16))
-                    }
-                    .buttonStyle(.plain)
-
-                    Button {
-                        mrp.sendCommand(.nextTrack)
-                    } label: {
-                        Image(systemName: "forward.fill")
-                            .font(.system(size: 14))
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(!mrp.supportedCommands.contains(.nextTrack))
+                    Text(np.flatMap { [$0.artist, $0.album].compactMap { $0 }.joined(separator: " — ") } ?? " ")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .foregroundStyle(.secondary)
-
-                // Progress bar
-                if let duration = np.duration, duration > 0 {
-                    NowPlayingProgress(nowPlaying: np, duration: duration)
-                        .padding(.horizontal, 16)
-                }
+                .opacity(hasContent ? 1 : 0)
             }
-            .padding(.bottom, 10)
+            .padding(.horizontal, 12)
+
+            // Controls
+            HStack(spacing: 28) {
+                Button {
+                    mrp.sendCommand(.previousTrack)
+                } label: {
+                    Image(systemName: "backward.fill")
+                        .font(.system(size: 18))
+                }
+                .buttonStyle(.plain)
+                .disabled(!hasContent || !mrp.supportedCommands.contains(.previousTrack))
+
+                Button {
+                    mrp.sendCommand(.togglePlayPause)
+                } label: {
+                    Image(systemName: np?.isPlaying == true ? "pause.fill" : "play.fill")
+                        .font(.system(size: 22))
+                }
+                .buttonStyle(.plain)
+                .disabled(!hasContent)
+
+                Button {
+                    mrp.sendCommand(.nextTrack)
+                } label: {
+                    Image(systemName: "forward.fill")
+                        .font(.system(size: 18))
+                }
+                .buttonStyle(.plain)
+                .disabled(!hasContent || !mrp.supportedCommands.contains(.nextTrack))
+            }
+            .foregroundStyle(.secondary)
+
+            // Progress bar — always show, zero state when nothing playing
+            NowPlayingProgress(
+                nowPlaying: np,
+                duration: np?.duration ?? 0
+            )
+            .padding(.horizontal, 12)
+            .opacity(hasContent && (np?.duration ?? 0) > 0 ? 1 : 0.3)
         }
+        .padding(.bottom, 10)
     }
 }
 
 struct NowPlayingProgress: View {
-    let nowPlaying: NowPlayingState
+    let nowPlaying: NowPlayingState?
     let duration: TimeInterval
 
     @State private var currentTime: TimeInterval = 0
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+
+    private var progress: Double {
+        guard duration > 0 else { return 0 }
+        return min(1, currentTime / duration)
+    }
 
     var body: some View {
         VStack(spacing: 2) {
@@ -283,7 +173,7 @@ struct NowPlayingProgress: View {
 
                     RoundedRectangle(cornerRadius: 1.5)
                         .fill(.secondary)
-                        .frame(width: max(0, geo.size.width * min(1, currentTime / duration)), height: 3)
+                        .frame(width: max(0, geo.size.width * progress), height: 3)
                 }
             }
             .frame(height: 3)
@@ -298,8 +188,8 @@ struct NowPlayingProgress: View {
                     .foregroundStyle(.tertiary)
             }
         }
-        .onAppear { currentTime = nowPlaying.currentPosition }
-        .onReceive(timer) { _ in currentTime = nowPlaying.currentPosition }
+        .onAppear { currentTime = nowPlaying?.currentPosition ?? 0 }
+        .onReceive(timer) { _ in currentTime = nowPlaying?.currentPosition ?? 0 }
     }
 
     private func formatTime(_ seconds: TimeInterval) -> String {
@@ -315,17 +205,55 @@ struct RemoteTabContent: View {
     @State private var showingKeyboard = false
     @State private var keyboardText = ""
 
-    var body: some View {
-        VStack(spacing: 16) {
-            // D-pad
-            DPadView { button in
-                manager.pressButton(button)
-            }
-            .padding(.horizontal, 24)
+    private let padding: CGFloat = 12
+    private let buttonSize: CGFloat = 60
+    private let buttonGap: CGFloat = 12
 
-            // Live keyboard input
+    var body: some View {
+        let dpadSize: CGFloat = 150
+
+        VStack(spacing: 10) {
+            // D-pad
+            DPadView(onPress: { manager.pressButton($0) }, size: dpadSize)
+
+            // Buttons matching Apple TV remote layout
+            VStack(spacing: buttonGap) {
+                // Row 1: Back + TV/Home
+                HStack(spacing: buttonGap) {
+                    RemoteCircleButton(icon: "chevron.backward", size: buttonSize) {
+                        manager.pressButton(.menu)
+                    }
+                    RemoteCircleButton(icon: "tv", size: buttonSize) {
+                        manager.pressButton(.home)
+                    }
+                }
+
+                // Rows 2-3: Play/Pause + Keyboard left, Volume pill right
+                HStack(alignment: .top, spacing: buttonGap) {
+                    VStack(spacing: buttonGap) {
+                        RemoteCircleButton(icon: "playpause.fill", size: buttonSize) {
+                            manager.pressButton(.playPause)
+                        }
+                        RemoteCircleButton(icon: "keyboard", size: buttonSize) {
+                            showingKeyboard.toggle()
+                            if !showingKeyboard {
+                                keyboardText = ""
+                                manager.resetTextInputState()
+                            }
+                        }
+                    }
+
+                    VolumePill(
+                        width: buttonSize,
+                        height: buttonSize * 2 + buttonGap,
+                        onUp: { manager.pressButton(.volumeUp) },
+                        onDown: { manager.pressButton(.volumeDown) }
+                    )
+                }
+            }
+
             if showingKeyboard {
-                HStack(spacing: 8) {
+                HStack(spacing: 6) {
                     TextField("Type here…", text: $keyboardText)
                         .textFieldStyle(.roundedBorder)
                         .onChange(of: keyboardText) { _, newValue in
@@ -347,39 +275,10 @@ struct RemoteTabContent: View {
                     }
                     .buttonStyle(.plain)
                 }
-                .padding(.horizontal, 16)
             }
-
-            // Bottom controls
-            HStack(spacing: 20) {
-                RemoteButton(systemImage: "arrow.uturn.backward", label: "Back") {
-                    manager.pressButton(.menu)
-                }
-                RemoteButton(systemImage: "house.fill", label: "Home") {
-                    manager.pressButton(.home)
-                }
-                RemoteButton(systemImage: "playpause.fill", label: "Play") {
-                    manager.pressButton(.playPause)
-                }
-                RemoteButton(systemImage: "keyboard.fill", label: "Text") {
-                    showingKeyboard.toggle()
-                    if !showingKeyboard {
-                        keyboardText = ""
-                        manager.resetTextInputState()
-                    }
-                }
-            }
-
-            HStack(spacing: 20) {
-                RemoteButton(systemImage: "speaker.minus.fill", label: "Vol-") {
-                    manager.pressButton(.volumeDown)
-                }
-                RemoteButton(systemImage: "speaker.plus.fill", label: "Vol+") {
-                    manager.pressButton(.volumeUp)
-                }
-            }
-            .padding(.bottom, 16)
         }
+        .padding(.horizontal, padding)
+        .padding(.bottom, 12)
     }
 }
 
@@ -415,10 +314,10 @@ struct AppGridView: View {
                         }
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 12)
+                .padding(.horizontal, 12)
+                .padding(.bottom, 10)
             }
-            .frame(maxHeight: 280)
+            .frame(maxHeight: 240)
             .onChange(of: manager.installedApps.map(\.bundleID)) {
                 iconLoader.loadIcons(for: manager.installedApps.map(\.bundleID))
             }
@@ -439,7 +338,7 @@ struct AppButton: View {
             VStack(spacing: 4) {
                 RoundedRectangle(cornerRadius: 8)
                     .fill(.quaternary)
-                    .frame(height: 40)
+                    .frame(height: 36)
                     .overlay {
                         if let icon {
                             Image(nsImage: icon)
@@ -464,18 +363,18 @@ struct AppButton: View {
 
 struct DPadView: View {
     let onPress: (CompanionButton) -> Void
-    let size: CGFloat = 160
+    let size: CGFloat
 
     var body: some View {
         ZStack {
             Circle()
-                .fill(.quaternary)
+                .fill(Color(nsColor: DS.Colors.primary))
                 .frame(width: size, height: size)
 
             // Center select button
             Button { onPress(.select) } label: {
                 Circle()
-                    .fill(.quinary)
+                    .fill(Color(nsColor: DS.Colors.primaryForeground).opacity(0.12))
                     .frame(width: size * 0.35, height: size * 0.35)
             }
             .buttonStyle(.plain)
@@ -518,31 +417,61 @@ struct DPadArrow: View {
         Button(action: action) {
             Image(systemName: direction.systemImage)
                 .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(.secondary)
-                .frame(width: 36, height: 36)
+                .foregroundStyle(Color(nsColor: DS.Colors.primaryForeground))
+                .frame(width: 30, height: 30)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
 }
 
-struct RemoteButton: View {
-    let systemImage: String
-    let label: String
+struct RemoteCircleButton: View {
+    let icon: String
+    let size: CGFloat
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 4) {
-                Image(systemName: systemImage)
-                    .font(.system(size: 18))
-                Text(label)
-                    .font(.caption2)
-            }
-            .foregroundStyle(.secondary)
-            .frame(width: 48, height: 40)
+            Image(systemName: icon)
+                .font(.system(size: size * 0.33, weight: .medium))
+                .foregroundStyle(Color(nsColor: DS.Colors.primaryForeground))
+                .frame(width: size, height: size)
+                .background(Circle().fill(Color(nsColor: DS.Colors.primary)))
         }
         .buttonStyle(.plain)
+    }
+}
+
+struct VolumePill: View {
+    let width: CGFloat
+    let height: CGFloat
+    let onUp: () -> Void
+    let onDown: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Button(action: onUp) {
+                Image(systemName: "plus")
+                    .font(.system(size: width * 0.3, weight: .medium))
+                    .foregroundStyle(Color(nsColor: DS.Colors.primaryForeground))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .buttonStyle(.plain)
+
+            Color(nsColor: DS.Colors.primaryForeground).opacity(0.15)
+                .frame(height: 1)
+
+            Button(action: onDown) {
+                Image(systemName: "minus")
+                    .font(.system(size: width * 0.3, weight: .medium))
+                    .foregroundStyle(Color(nsColor: DS.Colors.primaryForeground))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .buttonStyle(.plain)
+        }
+        .frame(width: width, height: height)
+        .background(Capsule().fill(Color(nsColor: DS.Colors.primary)))
+        .clipShape(Capsule())
     }
 }
 
