@@ -12,10 +12,13 @@ final class AppleTVManager {
     var connectedDeviceName: String?
     var isScanning = false
     var installedApps: [(bundleID: String, name: String)] = []
+    var mrpManager = MRPManager()
 
     private(set) var connection: CompanionConnection?
     private var pairSetup: PairSetup?
     private var partialCredentials: HAPCredentials?
+    private var currentCredentials: HAPCredentials?
+    private var connectedDevice: AppleTVDevice?
 
     let discovery = DeviceDiscovery()
 
@@ -37,6 +40,7 @@ final class AppleTVManager {
 
     func connect(to device: AppleTVDevice) {
         connectionStatus = .connecting
+        self.connectedDevice = device
 
         let conn = CompanionConnection()
         self.connection = conn
@@ -49,6 +53,7 @@ final class AppleTVManager {
                     self?.connectionStatus = .disconnected
                 }
                 self?.connectedDeviceName = nil
+                self?.connectedDevice = nil
             }
         }
 
@@ -59,6 +64,7 @@ final class AppleTVManager {
         // Check for stored credentials
         if let credentials = KeychainStorage.load(for: device.id) {
             // Already paired — do pair-verify
+            self.currentCredentials = credentials
             connectedDeviceName = device.name
             conn.connectToService(name: device.name)
 
@@ -86,10 +92,13 @@ final class AppleTVManager {
     }
 
     func disconnect() {
+        mrpManager.disconnect()
         connection?.disconnect()
         connection = nil
         connectionStatus = .disconnected
         connectedDeviceName = nil
+        connectedDevice = nil
+        currentCredentials = nil
         installedApps = []
     }
 
@@ -182,6 +191,7 @@ final class AppleTVManager {
                     try? KeychainStorage.save(credentials: credentials, for: deviceName)
                 }
 
+                self.currentCredentials = credentials
                 startPairVerify(credentials: credentials)
             } catch {
                 log.error("Pair-setup M6 failed: \(error.localizedDescription)")
@@ -252,7 +262,21 @@ final class AppleTVManager {
                 self?.connectionStatus = .connected
                 self?.fetchApps()
             }
+            // Resolve AirPlay service and start MRP tunnel
+            self?.startMRPViaTunnel()
         }
+    }
+
+    private func startMRPViaTunnel() {
+        guard let device = connectedDevice, !device.host.isEmpty, let creds = currentCredentials else {
+            log.warning("Cannot start MRP: no device host or credentials")
+            return
+        }
+
+        // AirPlay runs on port 7000 on the same host as companion-link
+        let airplayPort: UInt16 = 7000
+        log.info("Starting MRP via AirPlay tunnel: \(device.host):\(airplayPort)")
+        mrpManager.connect(host: device.host, port: airplayPort, credentials: creds)
     }
 
     func fetchApps() {

@@ -1,0 +1,24 @@
+syntax = "proto2";
+
+option swift_prefix = "MRP_";
+
+import "NowPlayingInfo.proto";
+import "SupportedCommands.proto";
+import "Common.proto";
+import "PlayerPath.proto";
+import "PlaybackQueue.proto";
+import "PlaybackQueueCapabilities.proto";
+import "PlaybackQueueRequestMessage.proto";
+
+message SetStateMessage {
+    optional NowPlayingInfo nowPlayingInfo = 1;
+    optional SupportedCommands supportedCommands = 2;
+    optional PlaybackQueue playbackQueue = 3;
+    optional string displayID = 4;
+    optional string displayName = 5;
+    optional PlaybackState.Enum playbackState = 6;
+    optional PlaybackQueueCapabilities playbackQueueCapabilities = 8;
+    optional PlayerPath playerPath = 9;
+    optional PlaybackQueueRequestMessage request = 10;
+    optional double playbackStateTimestamp = 11;
+}

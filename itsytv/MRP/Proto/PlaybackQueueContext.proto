@@ -1,0 +1,7 @@
+syntax = "proto2";
+
+option swift_prefix = "MRP_";
+
+message PlaybackQueueContext {
+    optional uint32 revision = 1;
+}

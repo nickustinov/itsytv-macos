@@ -65,8 +65,8 @@ final class DeviceDiscovery: NSObject {
         let device = AppleTVDevice(
             id: service.name,
             name: service.name,
-            host: "",
-            port: 0,
+            host: service.hostName ?? "",
+            port: UInt16(service.port),
             modelName: modelName
         )
         devices[service.name] = device

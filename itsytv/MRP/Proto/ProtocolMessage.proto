@@ -1,0 +1,61 @@
+syntax = "proto2";
+
+option swift_prefix = "MRP_";
+
+import "DeviceInfoMessage.proto";
+import "CryptoPairingMessage.proto";
+import "SetStateMessage.proto";
+import "SendCommandMessage.proto";
+import "ClientUpdatesConfigMessage.proto";
+import "SetConnectionStateMessage.proto";
+import "PlaybackQueueRequestMessage.proto";
+import "PlaybackQueue.proto";
+
+message ProtocolMessage {
+    enum Type {
+        UNKNOWN_MESSAGE = 0;
+        SEND_COMMAND_MESSAGE = 1;
+        SEND_COMMAND_RESULT_MESSAGE = 2;
+        GET_STATE_MESSAGE = 3;
+        SET_STATE_MESSAGE = 4;
+        SET_ARTWORK_MESSAGE = 5;
+        SEND_HID_EVENT_MESSAGE = 8;
+        DEVICE_INFO_MESSAGE = 15;
+        CLIENT_UPDATES_CONFIG_MESSAGE = 16;
+        VOLUME_CONTROL_AVAILABILITY_MESSAGE = 17;
+        GET_KEYBOARD_SESSION_MESSAGE = 24;
+        PLAYBACK_QUEUE_REQUEST_MESSAGE = 32;
+        TRANSACTION_MESSAGE = 33;
+        CRYPTO_PAIRING_MESSAGE = 34;
+        SET_CONNECTION_STATE_MESSAGE = 38;
+        SEND_BUTTON_EVENT_MESSAGE = 39;
+        WAKE_DEVICE_MESSAGE = 41;
+        GENERIC_MESSAGE = 42;
+        SET_NOW_PLAYING_CLIENT_MESSAGE = 46;
+        SET_NOW_PLAYING_PLAYER_MESSAGE = 47;
+        UPDATE_CONTENT_ITEM_MESSAGE = 56;
+        UPDATE_PLAYER_MESSAGE = 58;
+    }
+
+    optional Type type = 1;
+    optional string identifier = 2;
+    optional string authenticationToken = 3;
+    optional uint32 errorCode = 4;
+    optional uint64 timestamp = 5;
+    optional string uniqueIdentifier = 85;
+
+    extensions 6 to 77;
+    extensions 79 to 84;
+    extensions 86 to max;
+}
+
+extend ProtocolMessage {
+    optional SendCommandMessage sendCommandMessage = 6;
+    optional SetStateMessage setStateMessage = 9;
+    optional DeviceInfoMessage deviceInfoMessage = 20;
+    optional ClientUpdatesConfigMessage clientUpdatesConfigMessage = 21;
+    optional PlaybackQueueRequestMessage playbackQueueRequestMessage = 37;
+    optional PlaybackQueue playbackQueueMessage = 38;
+    optional CryptoPairingMessage cryptoPairingMessage = 39;
+    optional SetConnectionStateMessage setConnectionStateMessage = 42;
+}

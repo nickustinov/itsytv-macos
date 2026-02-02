@@ -1,0 +1,9 @@
+syntax = "proto2";
+
+option swift_prefix = "MRP_";
+
+import "CommandInfo.proto";
+
+message SupportedCommands {
+    repeated CommandInfo supportedCommands = 1;
+}

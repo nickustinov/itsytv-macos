@@ -1,0 +1,13 @@
+syntax = "proto2";
+
+option swift_prefix = "MRP_";
+
+import "ContentItem.proto";
+import "PlaybackQueueCapabilities.proto";
+
+message PlaybackQueue {
+    optional uint32 location = 1;
+    repeated ContentItem contentItems = 2;
+    optional PlaybackQueueCapabilities capabilities = 3;
+    optional string requestID = 4;
+}

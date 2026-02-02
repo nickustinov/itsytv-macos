@@ -1,0 +1,27 @@
+syntax = "proto2";
+
+option swift_prefix = "MRP_";
+
+message PlayerPath {
+    optional Origin origin = 1;
+    optional NowPlayingClient client = 2;
+    optional NowPlayingPlayer player = 3;
+}
+
+message Origin {
+    optional string displayName = 1;
+    optional string identifier = 2;
+    optional uint64 type = 3;
+}
+
+message NowPlayingClient {
+    optional string displayName = 1;
+    optional string bundleIdentifier = 2;
+    optional uint64 processIdentifier = 3;
+}
+
+message NowPlayingPlayer {
+    optional string displayName = 1;
+    optional string identifier = 2;
+    optional uint64 type = 3;
+}

@@ -1,0 +1,18 @@
+syntax = "proto2";
+
+option swift_prefix = "MRP_";
+
+import "ContentItemMetadata.proto";
+
+message ContentItem {
+    optional string identifier = 1;
+    optional ContentItemMetadata metadata = 2;
+    optional bytes artworkData = 3;
+    optional string info = 4;
+    optional string parentIdentifier = 9;
+    optional string ancestorIdentifier = 10;
+    optional string queueIdentifier = 11;
+    optional string requestIdentifier = 12;
+    optional int32 artworkDataWidth = 13;
+    optional int32 artworkDataHeight = 14;
+}

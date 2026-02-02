@@ -25,7 +25,9 @@ targets:
     type: application
     platform: macOS
     sources:
-      - itsytv
+      - path: itsytv
+        excludes:
+          - "**/*.proto"
     settings:
       base:
         INFOPLIST_FILE: itsytv/Info.plist
@@ -47,6 +49,7 @@ targets:
         excludes:
           - itsytvApp.swift
           - UI/**
+          - "**/*.proto"
     dependencies:
       - package: SwiftProtobuf
       - package: SRP

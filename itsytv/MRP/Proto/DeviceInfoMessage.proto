@@ -1,0 +1,29 @@
+syntax = "proto2";
+
+option swift_prefix = "MRP_";
+
+import "Common.proto";
+
+message DeviceInfoMessage {
+    optional string uniqueIdentifier = 1;
+    required string name = 2;
+    optional string localizedModelName = 3;
+    optional string systemBuildVersion = 4;
+    optional string applicationBundleIdentifier = 5;
+    optional string applicationBundleVersion = 6;
+    optional int32 protocolVersion = 7;
+    optional uint32 lastSupportedMessageType = 8;
+    optional bool supportsSystemPairing = 9;
+    optional bool allowsPairing = 10;
+    optional bool connected = 11;
+    optional string systemMediaApplication = 12;
+    optional bool supportsACL = 13;
+    optional bool supportsSharedQueue = 14;
+    optional bool supportsExtendedMotion = 15;
+    optional bytes bluetoothAddress = 16;
+    optional uint32 sharedQueueVersion = 17;
+    optional string deviceUID = 19;
+    optional string managedConfigDeviceID = 20;
+    optional DeviceClass.Enum deviceClass = 21;
+    optional uint32 logicalDeviceCount = 22;
+}

@@ -1,0 +1,13 @@
+syntax = "proto2";
+
+option swift_prefix = "MRP_";
+
+import "CommandInfo.proto";
+import "CommandOptions.proto";
+import "PlayerPath.proto";
+
+message SendCommandMessage {
+    optional Command command = 1;
+    optional CommandOptions options = 2;
+    optional PlayerPath playerPath = 3;
+}

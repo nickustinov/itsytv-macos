@@ -1,0 +1,47 @@
+syntax = "proto2";
+
+option swift_prefix = "MRP_";
+
+message RepeatMode {
+    enum Enum {
+        Unknown = 0;
+        Off = 1;
+        One = 2;
+        All = 3;
+    }
+}
+
+message ShuffleMode {
+    enum Enum {
+        Unknown = 0;
+        Off = 1;
+        Albums = 2;
+        Songs = 3;
+    }
+}
+
+message DeviceClass {
+    enum Enum {
+        Invalid = 0;
+        iPhone = 1;
+        iPod = 2;
+        iPad = 3;
+        AppleTV = 4;
+        iFPGA = 5;
+        Watch = 6;
+        Accessory = 7;
+        Bridge = 8;
+        Mac = 9;
+    }
+}
+
+message PlaybackState {
+    enum Enum {
+        Unknown = 0;
+        Playing = 1;
+        Paused = 2;
+        Stopped = 3;
+        Interrupted = 4;
+        Seeking = 5;
+    }
+}

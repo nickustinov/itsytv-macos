@@ -1,0 +1,24 @@
+syntax = "proto2";
+
+option swift_prefix = "MRP_";
+
+message ContentItemMetadata {
+    optional string title = 1;
+    optional string subtitle = 2;
+    optional bool isContainer = 3;
+    optional bool isPlayable = 4;
+    optional float playbackProgress = 5;
+    optional string albumName = 6;
+    optional string trackArtistName = 7;
+    optional string albumArtistName = 8;
+    optional double duration = 14;
+    optional string localizedContentRating = 15;
+    optional bool artworkAvailable = 19;
+    optional string collectionIdentifier = 28;
+    optional string artworkMIMEType = 31;
+    optional double elapsedTime = 35;
+    optional float playbackRate = 39;
+    optional string contentIdentifier = 44;
+    optional double elapsedTimeTimestamp = 74;
+    optional string artworkIdentifier = 80;
+}

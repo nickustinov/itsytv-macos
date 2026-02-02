@@ -178,7 +178,135 @@ struct RemoteControlView: View {
             case .apps:
                 AppGridView()
             }
+
+            // Now playing bar
+            if manager.mrpManager.nowPlaying != nil {
+                NowPlayingBar()
+            }
         }
+    }
+}
+
+struct NowPlayingBar: View {
+    @Environment(AppleTVManager.self) private var manager
+
+    var body: some View {
+        let mrp = manager.mrpManager
+        if let np = mrp.nowPlaying {
+            VStack(spacing: 6) {
+                Divider()
+
+                // Artwork + title + artist
+                HStack(spacing: 10) {
+                    if let data = np.artworkData, let image = NSImage(data: data) {
+                        Image(nsImage: image)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: 40, height: 40)
+                            .cornerRadius(4)
+                    }
+
+                    VStack(spacing: 2) {
+                        Text(np.title ?? "Unknown")
+                            .font(.caption.bold())
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        if np.artist != nil || np.album != nil {
+                            Text([np.artist, np.album].compactMap { $0 }.joined(separator: " — "))
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                }
+                .padding(.horizontal, 16)
+
+                // Controls
+                HStack(spacing: 24) {
+                    Button {
+                        mrp.sendCommand(.previousTrack)
+                    } label: {
+                        Image(systemName: "backward.fill")
+                            .font(.system(size: 14))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!mrp.supportedCommands.contains(.previousTrack))
+
+                    Button {
+                        mrp.sendCommand(.togglePlayPause)
+                    } label: {
+                        Image(systemName: np.isPlaying ? "pause.fill" : "play.fill")
+                            .font(.system(size: 16))
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        mrp.sendCommand(.nextTrack)
+                    } label: {
+                        Image(systemName: "forward.fill")
+                            .font(.system(size: 14))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!mrp.supportedCommands.contains(.nextTrack))
+                }
+                .foregroundStyle(.secondary)
+
+                // Progress bar
+                if let duration = np.duration, duration > 0 {
+                    NowPlayingProgress(nowPlaying: np, duration: duration)
+                        .padding(.horizontal, 16)
+                }
+            }
+            .padding(.bottom, 10)
+        }
+    }
+}
+
+struct NowPlayingProgress: View {
+    let nowPlaying: NowPlayingState
+    let duration: TimeInterval
+
+    @State private var currentTime: TimeInterval = 0
+    private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+
+    var body: some View {
+        VStack(spacing: 2) {
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 1.5)
+                        .fill(.quaternary)
+                        .frame(height: 3)
+
+                    RoundedRectangle(cornerRadius: 1.5)
+                        .fill(.secondary)
+                        .frame(width: max(0, geo.size.width * min(1, currentTime / duration)), height: 3)
+                }
+            }
+            .frame(height: 3)
+
+            HStack {
+                Text(formatTime(currentTime))
+                    .font(.system(size: 9, design: .monospaced))
+                    .foregroundStyle(.tertiary)
+                Spacer()
+                Text(formatTime(duration))
+                    .font(.system(size: 9, design: .monospaced))
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .onAppear { currentTime = nowPlaying.currentPosition }
+        .onReceive(timer) { _ in currentTime = nowPlaying.currentPosition }
+    }
+
+    private func formatTime(_ seconds: TimeInterval) -> String {
+        let total = max(0, Int(seconds))
+        let m = total / 60
+        let s = total % 60
+        return String(format: "%d:%02d", m, s)
     }
 }
 

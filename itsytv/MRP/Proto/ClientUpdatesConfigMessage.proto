@@ -1,0 +1,11 @@
+syntax = "proto2";
+
+option swift_prefix = "MRP_";
+
+message ClientUpdatesConfigMessage {
+    optional bool artworkUpdates = 1;
+    optional bool nowPlayingUpdates = 2;
+    optional bool volumeUpdates = 3;
+    optional bool keyboardUpdates = 4;
+    optional bool outputDeviceUpdates = 5;
+}

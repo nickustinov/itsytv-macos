@@ -1,0 +1,11 @@
+syntax = "proto2";
+
+option swift_prefix = "MRP_";
+
+message PlaybackQueueCapabilities {
+    optional bool canReorderItems = 1;
+    optional bool canInsertAfterContentItem = 2;
+    optional bool canInsertAtEnd = 3;
+    optional bool canSkipItems = 4;
+    optional bool canFetchMediaItems = 5;
+}
