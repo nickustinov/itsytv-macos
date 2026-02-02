@@ -55,7 +55,12 @@ final class AppleTVManager {
                 // Once connected, MRP runs over the AirPlay tunnel — the companion
                 // link TCP connection closing is expected and should be ignored.
                 if self.connectionStatus == .connected {
-                    log.info("Companion link closed while MRP tunnel active — ignoring")
+                    log.info("Companion link closed while MRP tunnel active — cleaning up companion")
+                    self.connection?.stopKeepAlive()
+                    self.connection?.stopTextInput()
+                    self.connection = nil
+                    self.textInputSessionUUID = nil
+                    self.sentText = ""
                     return
                 }
                 if let error {

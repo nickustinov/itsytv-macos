@@ -86,7 +86,7 @@ final class CompanionConnection {
         keepAliveTimer = timer
     }
 
-    private func stopKeepAlive() {
+    func stopKeepAlive() {
         keepAliveTimer?.cancel()
         keepAliveTimer = nil
     }

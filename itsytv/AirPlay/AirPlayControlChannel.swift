@@ -394,9 +394,6 @@ final class AirPlayControlChannel {
         let body = Data(receiveBuffer[bodyStart..<totalNeeded])
         receiveBuffer = Data(receiveBuffer[totalNeeded...])
 
-        // Log full response headers for debugging
-        log.info("AirPlay response headers:\n\(headerStr)")
-
         return body
     }
 
