@@ -312,6 +312,8 @@ struct NowPlayingProgress: View {
 
 struct RemoteTabContent: View {
     @Environment(AppleTVManager.self) private var manager
+    @State private var showingKeyboard = false
+    @State private var keyboardText = ""
 
     var body: some View {
         VStack(spacing: 16) {
@@ -320,6 +322,33 @@ struct RemoteTabContent: View {
                 manager.pressButton(button)
             }
             .padding(.horizontal, 24)
+
+            // Live keyboard input
+            if showingKeyboard {
+                HStack(spacing: 8) {
+                    TextField("Type here…", text: $keyboardText)
+                        .textFieldStyle(.roundedBorder)
+                        .onChange(of: keyboardText) { _, newValue in
+                            manager.updateRemoteText(newValue)
+                        }
+                        .onSubmit {
+                            keyboardText = ""
+                            showingKeyboard = false
+                            manager.resetTextInputState()
+                        }
+
+                    Button {
+                        keyboardText = ""
+                        showingKeyboard = false
+                        manager.resetTextInputState()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 16)
+            }
 
             // Bottom controls
             HStack(spacing: 20) {
@@ -331,6 +360,13 @@ struct RemoteTabContent: View {
                 }
                 RemoteButton(systemImage: "playpause.fill", label: "Play") {
                     manager.pressButton(.playPause)
+                }
+                RemoteButton(systemImage: "keyboard.fill", label: "Text") {
+                    showingKeyboard.toggle()
+                    if !showingKeyboard {
+                        keyboardText = ""
+                        manager.resetTextInputState()
+                    }
                 }
             }
 
@@ -346,6 +382,7 @@ struct RemoteTabContent: View {
         }
     }
 }
+
 
 struct AppGridView: View {
     @Environment(AppleTVManager.self) private var manager

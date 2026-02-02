@@ -48,7 +48,7 @@ extension CompanionConnection {
     /// Start a companion session. Must be called after pair-verify before other commands.
     func startSession(completion: @escaping (Int64?) -> Void) {
         let localSID = Int64.random(in: 0...Int64(UInt32.max))
-        log.info("Starting session with local SID=\(localSID)")
+        log.debug("Starting session with local SID=\(localSID)")
         sendRequest(
             eventName: "_sessionStart",
             content: .dictionary([
@@ -71,24 +71,15 @@ extension CompanionConnection {
 
     /// Fetch the list of launchable applications.
     func fetchApps(completion: @escaping ([(bundleID: String, name: String)]) -> Void) {
-        log.info("Sending FetchLaunchableApplicationsEvent request")
         sendRequest(eventName: "FetchLaunchableApplicationsEvent", content: .dict([]), responseHandler: { response in
-            log.info("Got FetchLaunchableApplicationsEvent response")
             var apps: [(bundleID: String, name: String)] = []
             if let content = response["_c"]?.dictValue {
-                log.info("Response _c dict has \(content.count) entries")
                 for pair in content {
                     guard let bundleID = pair.key.stringValue,
-                          let name = pair.value.stringValue else {
-                        log.warning("Skipping non-string pair: key=\(String(describing: pair.key)) value=\(String(describing: pair.value))")
-                        continue
-                    }
+                          let name = pair.value.stringValue else { continue }
                     apps.append((bundleID: bundleID, name: name))
                 }
-            } else {
-                log.warning("Response has no _c dict — keys: \(response.dictValue?.map { String(describing: $0.key) } ?? [])")
             }
-            log.info("Parsed \(apps.count) apps")
             completion(apps)
         })
     }
@@ -104,10 +95,31 @@ extension CompanionConnection {
         )
     }
 
-    /// Send text input (keyboard).
-    func sendText(_ text: String, completion: ((Swift.Error?) -> Void)? = nil) {
-        sendEvent(name: "_kbS", content: .dictionary([
-            ("_kbS", .string(text)),
+    /// Start a text input session. The response contains a session UUID and current text.
+    func startTextInput(responseHandler: @escaping (OPACK.Value) -> Void) {
+        sendRequest(eventName: "_tiStart", content: .dict([]), responseHandler: responseHandler)
+    }
+
+    /// Stop the current text input session.
+    func stopTextInput(responseHandler: ((OPACK.Value) -> Void)? = nil) {
+        sendRequest(eventName: "_tiStop", content: .dict([]), responseHandler: responseHandler)
+    }
+
+    /// Send a text input event (insert text) for the given session.
+    func sendTextInputEvent(_ text: String, sessionUUID: Data, completion: ((Swift.Error?) -> Void)? = nil) {
+        let payload = TextInputSession.encodeInsertText(text, sessionUUID: sessionUUID)
+        sendEvent(name: "_tiC", content: .dictionary([
+            ("_tiV", .int(1)),
+            ("_tiD", .data(payload)),
+        ]), completion: completion)
+    }
+
+    /// Atomically clear and replace the text field (single event, no flash).
+    func replaceTextInputEvent(_ text: String, sessionUUID: Data, completion: ((Swift.Error?) -> Void)? = nil) {
+        let payload = TextInputSession.encodeReplaceText(text, sessionUUID: sessionUUID)
+        sendEvent(name: "_tiC", content: .dictionary([
+            ("_tiV", .int(1)),
+            ("_tiD", .data(payload)),
         ]), completion: completion)
     }
 

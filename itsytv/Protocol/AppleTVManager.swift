@@ -20,6 +20,10 @@ final class AppleTVManager {
     private var currentCredentials: HAPCredentials?
     private var connectedDevice: AppleTVDevice?
 
+    /// Text input session state — kept alive while connected.
+    private var textInputSessionUUID: Data?
+    private var sentText = ""
+
     let discovery = DeviceDiscovery()
 
     // MARK: - Discovery
@@ -92,6 +96,7 @@ final class AppleTVManager {
     }
 
     func disconnect() {
+        connection?.stopTextInput()
         mrpManager.disconnect()
         connection?.disconnect()
         connection = nil
@@ -99,6 +104,8 @@ final class AppleTVManager {
         connectedDeviceName = nil
         connectedDevice = nil
         currentCredentials = nil
+        textInputSessionUUID = nil
+        sentText = ""
         installedApps = []
     }
 
@@ -134,13 +141,60 @@ final class AppleTVManager {
         connection?.launchApp(bundleID: bundleID)
     }
 
+    /// Update the Apple TV text field to match `newText`.
+    ///
+    /// Sends only the diff: appends new characters when typing forward,
+    /// or clears and re-types when characters are deleted (backspace).
+    func updateRemoteText(_ newText: String) {
+        guard let connection else { return }
+
+        let ensureSession: (@escaping (Data) -> Void) -> Void = { [weak self] handler in
+            if let uuid = self?.textInputSessionUUID {
+                handler(uuid)
+                return
+            }
+            connection.stopTextInput { _ in
+                connection.startTextInput { response in
+                    guard let content = response["_c"],
+                          let tiData = content["_tiD"]?.dataValue,
+                          let result = try? TextInputSession.decodeStartResponse(tiData) else {
+                        log.debug("No active text field")
+                        return
+                    }
+                    self?.textInputSessionUUID = result.sessionUUID
+                    handler(result.sessionUUID)
+                }
+            }
+        }
+
+        ensureSession { [weak self] uuid in
+            guard let self else { return }
+            if newText.hasPrefix(self.sentText) {
+                // Typed forward — send only the new characters
+                let added = String(newText.dropFirst(self.sentText.count))
+                if !added.isEmpty {
+                    connection.sendTextInputEvent(added, sessionUUID: uuid)
+                }
+            } else {
+                // Backspace or edit — atomic clear + replace in one event
+                connection.replaceTextInputEvent(newText, sessionUUID: uuid)
+            }
+            self.sentText = newText
+        }
+    }
+
+    /// Reset local text tracking (call when closing keyboard).
+    func resetTextInputState() {
+        sentText = ""
+    }
+
     // MARK: - Frame handling
 
     private var pendingM2: CompanionFrame?
     private var pendingPairVerify: PairVerify?
 
     private func handleFrame(_ frame: CompanionFrame) {
-        log.info("Frame received: type=\(String(describing: frame.type)) payload=\(frame.payload.count) bytes")
+        log.debug("Frame received: type=\(String(describing: frame.type)) payload=\(frame.payload.count) bytes")
         switch frame.type {
         case .pairSetupNext:
             handlePairSetupResponse(frame)
@@ -258,6 +312,14 @@ final class AppleTVManager {
                 log.warning("Session start failed, attempting fetchApps anyway")
             }
             self?.connection?.startKeepAlive()
+            // Start text input listener (like pyatv does on connect)
+            self?.connection?.startTextInput { [weak self] response in
+                if let content = response["_c"],
+                   let tiData = content["_tiD"]?.dataValue,
+                   let result = try? TextInputSession.decodeStartResponse(tiData) {
+                    self?.textInputSessionUUID = result.sessionUUID
+                }
+            }
             DispatchQueue.main.async {
                 self?.connectionStatus = .connected
                 self?.fetchApps()
@@ -280,9 +342,7 @@ final class AppleTVManager {
     }
 
     func fetchApps() {
-        log.info("fetchApps called, connection=\(self.connection != nil)")
         connection?.fetchApps { [weak self] apps in
-            log.info("fetchApps completion: \(apps.count) apps received")
             DispatchQueue.main.async {
                 self?.installedApps = apps.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
             }
@@ -305,8 +365,6 @@ final class AppleTVManager {
 
         case CompanionMessageType.response.rawValue:
             let xid = message["_x"]?.intValue ?? -1
-            let eventName = message["_i"]?.stringValue
-            log.info("Response: xid=\(xid) event=\(eventName ?? "?")")
             connection?.dispatchResponse(xid: xid, message: message)
 
         default:

@@ -1,47 +1,17 @@
 # Itsytv
 
-A native macOS menu bar app for controlling your Apple TV. Uses the companion link protocol for remote control and app launching, and MRP over AirPlay 2 for now-playing information and media commands.
+A native macOS menu bar app for controlling your Apple TV. 
 
 ## Features
 
 - **Menu bar remote** — Control your Apple TV from the macOS menu bar with a compact remote interface
 - **Now playing** — Live now-playing bar with title, artist, album, artwork, progress bar, and playback controls (play/pause, next, previous)
 - **App launcher** — Browse installed apps in a grid with icons fetched from the App Store, launch with a click
-- **Automatic discovery** — Finds Apple TVs on your network via Bonjour, filters out HomePods/Macs/iPads
-- **Secure pairing** — SRP-based pair-setup with PIN verification, identical to HomeKit authentication
-- **Encrypted communication** — ChaCha20-Poly1305 transport encryption with HKDF-derived session keys
 - **Credential storage** — Pairing credentials stored securely in macOS Keychain
 - **D-pad navigation** — Up, down, left, right, select with a circular remote layout
 - **Playback controls** — Play/pause, volume up/down
 - **System buttons** — Home, menu, back, sleep/wake
 - **Multiple devices** — Pair and switch between multiple Apple TVs
-
-## How it works
-
-Itsytv uses two protocols to communicate with Apple TV:
-
-### Companion link protocol
-
-The same protocol used by the iOS Remote app, handling remote control and app management:
-
-1. **Discovery** — Bonjour browsing for `_companion-link._tcp` with TXT record filtering (`rpFl` flags) to show only Apple TVs
-2. **Pair-setup** (first time) — SRP-6a handshake with a 4-digit PIN displayed on the TV, exchanging Ed25519 long-term keys
-3. **Pair-verify** (subsequent connections) — Curve25519 ephemeral key exchange using stored credentials
-4. **Session start** — `_sessionStart` handshake to establish a companion session
-5. **Encrypted session** — All commands sent as OPACK-encoded messages over ChaCha20-Poly1305 encrypted frames, with periodic keep-alive
-
-Remote control commands are sent as HID events. App list is fetched via `FetchLaunchableApplicationsEvent` and apps are launched via `_launchApp`.
-
-### MRP over AirPlay 2 tunnel
-
-Since tvOS 15+ no longer advertises `_mediaremotetv._tcp`, now-playing information and media commands are tunneled over an AirPlay 2 data stream:
-
-1. **AirPlay discovery** — Resolve `_airplay._tcp` for the connected device
-2. **Pair-verify** — `POST /pair-verify` with TLV8/Curve25519, reusing stored companion credentials
-3. **HAP encryption** — HKDF-derived keys, 1024-byte block ChaCha20-Poly1305 framing on all channels
-4. **Event channel** — RTSP SETUP, then encrypted TCP connection for server push events
-5. **Data stream channel** — RTSP SETUP with stream seed, then encrypted TCP connection with 28-byte header + binary plist framing
-6. **MRP protobufs** — Varint-prefixed protobuf messages (device info, playback queue requests, set state updates) flow through the data stream channel
 
 ## Requirements
 
