@@ -1,0 +1,58 @@
+name: itsytv
+options:
+  deploymentTarget:
+    macOS: "14.0"
+  bundleIdPrefix: com.itsytv
+  xcodeVersion: "16.0"
+  generateEmptyDirectories: true
+  groupSortPosition: top
+
+settings:
+  base:
+    SWIFT_VERSION: "5.10"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+
+packages:
+  SwiftProtobuf:
+    url: https://github.com/apple/swift-protobuf.git
+    from: "1.28.0"
+  SRP:
+    url: https://github.com/adam-fowler/swift-srp.git
+    from: "2.1.0"
+
+targets:
+  itsytv:
+    type: application
+    platform: macOS
+    sources:
+      - itsytv
+    settings:
+      base:
+        INFOPLIST_FILE: itsytv/Info.plist
+        CODE_SIGN_ENTITLEMENTS: itsytv/itsytv.entitlements
+        PRODUCT_BUNDLE_IDENTIFIER: com.itsytv.app
+        PRODUCT_NAME: itsytv
+        GENERATE_INFOPLIST_FILE: false
+    dependencies:
+      - package: SwiftProtobuf
+      - package: SRP
+        product: SRP
+
+  itsytvTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - Tests
+      - path: itsytv
+        excludes:
+          - itsytvApp.swift
+          - UI/**
+    dependencies:
+      - package: SwiftProtobuf
+      - package: SRP
+        product: SRP
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.itsytv.tests
+        GENERATE_INFOPLIST_FILE: true
+        TEST_HOST: ""
