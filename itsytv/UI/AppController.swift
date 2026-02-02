@@ -142,7 +142,7 @@ final class AppController: NSObject, NSMenuDelegate {
         let iconY = (height - iconSize) / 2
         let iconView = NSImageView(frame: NSRect(x: DS.Spacing.md, y: iconY, width: iconSize, height: iconSize))
         iconView.image = NSImage(systemSymbolName: "appletv.fill", accessibilityDescription: nil)
-        iconView.contentTintColor = DS.Colors.mutedForeground
+        iconView.contentTintColor = DS.Colors.iconForeground
         iconView.imageScaling = .scaleProportionallyUpOrDown
         containerView.addSubview(iconView)
 
@@ -227,7 +227,7 @@ final class AppController: NSObject, NSMenuDelegate {
         hostingView.translatesAutoresizingMaskIntoConstraints = false
 
         // Vibrancy view as the contentView itself
-        let vibrancy = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: 200, height: 400))
+        let vibrancy = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: 176, height: 400))
         vibrancy.material = .menu
         vibrancy.state = .active
         vibrancy.wantsLayer = true
@@ -243,7 +243,7 @@ final class AppController: NSObject, NSMenuDelegate {
         ])
 
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 200, height: 400),
+            contentRect: NSRect(x: 0, y: 0, width: 176, height: 400),
             styleMask: [.nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -259,7 +259,7 @@ final class AppController: NSObject, NSMenuDelegate {
         panel.hasShadow = true
 
         if let buttonFrame = statusItem.button?.window?.frame {
-            let x = buttonFrame.midX - 100
+            let x = buttonFrame.midX - 88
             let y = buttonFrame.minY - panel.frame.height
             panel.setFrameOrigin(NSPoint(x: x, y: y))
         }
@@ -348,7 +348,7 @@ struct PanelContentView: View {
                 EmptyView()
             }
         }
-        .frame(width: 200)
+        .frame(width: 176)
     }
 }
 

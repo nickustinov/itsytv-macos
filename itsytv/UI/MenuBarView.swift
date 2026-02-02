@@ -23,7 +23,7 @@ struct RemoteControlView: View {
                 Spacer()
                 PanelCloseButton { manager.disconnect() }
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 8)
             .padding(.top, 8)
 
             // Controls — dimmed while connecting
@@ -33,31 +33,40 @@ struct RemoteControlView: View {
                     selection: $selectedTab,
                     options: RemoteTab.allCases.map { ($0, $0.rawValue) }
                 )
-                .padding(.horizontal, 12)
+                .padding(.horizontal, 8)
 
-                // Power button (Control Center) — right aligned
-                HStack {
-                    Spacer()
-                    Button { manager.pressButton(.pageDown) } label: {
-                        Image(systemName: "power")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(.secondary)
-                            .frame(width: 24, height: 24)
-                            .background(Circle().fill(Color.secondary.opacity(0.12)))
+                // Content — remote is always rendered to maintain size
+                ZStack(alignment: .topTrailing) {
+                    ZStack {
+                        // Remote always rendered (hidden when on apps to keep size)
+                        VStack(spacing: 10) {
+                            RemoteTabContent()
+                            NowPlayingBar()
+                        }
+                        .opacity(selectedTab == .remote ? 1 : 0)
+                        .allowsHitTesting(selectedTab == .remote)
+
+                        // Apps overlaid on top when selected
+                        if selectedTab == .apps {
+                            AppGridView()
+                                .transition(.identity)
+                        }
                     }
-                    .buttonStyle(.plain)
-                }
-                .padding(.horizontal, 12)
+                    .animation(nil, value: selectedTab)
 
-                switch selectedTab {
-                case .remote:
-                    RemoteTabContent()
-                case .apps:
-                    AppGridView()
+                    // Power button (Control Center) — floats over content
+                    if selectedTab == .remote {
+                        Button { manager.pressButton(.pageDown) } label: {
+                            Image(systemName: "power")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(.secondary)
+                                .frame(width: 24, height: 24)
+                                .background(Circle().fill(Color.secondary.opacity(0.12)))
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.trailing, 8)
+                    }
                 }
-
-                // Now playing bar — always visible
-                NowPlayingBar()
             }
             .opacity(isConnected ? 1 : 0.4)
             .allowsHitTesting(isConnected)
@@ -76,37 +85,41 @@ struct NowPlayingBar: View {
         VStack(spacing: 6) {
             Divider()
 
-            // Artwork + title + artist
-            HStack(spacing: 8) {
-                if let data = np?.artworkData, let image = NSImage(data: data) {
-                    Image(nsImage: image)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: 36, height: 36)
-                        .cornerRadius(4)
-                } else {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(.quaternary)
-                        .frame(width: 36, height: 36)
-                }
-
-                VStack(spacing: 2) {
-                    Text(np?.title ?? " ")
-                        .font(.caption.bold())
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-
-                    Text(np.flatMap { [$0.artist, $0.album].compactMap { $0 }.joined(separator: " — ") } ?? " ")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .opacity(hasContent ? 1 : 0)
+            // Artwork — full width, square
+            if let data = np?.artworkData, let image = NSImage(data: data) {
+                Image(nsImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 160)
+                    .clipped()
+                    .cornerRadius(6)
+                    .padding(.horizontal, 8)
+            } else {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(.quaternary)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 160)
+                    .padding(.horizontal, 8)
             }
-            .padding(.horizontal, 12)
+
+            // Title + artist
+            VStack(spacing: 2) {
+                Text(np?.title ?? " ")
+                    .font(.subheadline.bold())
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                Text(np.flatMap { [$0.artist, $0.album].compactMap { $0 }.joined(separator: " — ") } ?? " ")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .opacity(hasContent ? 1 : 0)
+            .padding(.horizontal, 8)
 
             // Controls
             HStack(spacing: 28) {
@@ -139,12 +152,12 @@ struct NowPlayingBar: View {
             }
             .foregroundStyle(.secondary)
 
-            // Progress bar — always show, zero state when nothing playing
+            // Progress bar
             NowPlayingProgress(
                 nowPlaying: np,
                 duration: np?.duration ?? 0
             )
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 8)
             .opacity(hasContent && (np?.duration ?? 0) > 0 ? 1 : 0.3)
         }
         .padding(.bottom, 10)
@@ -205,16 +218,17 @@ struct RemoteTabContent: View {
     @State private var showingKeyboard = false
     @State private var keyboardText = ""
 
-    private let padding: CGFloat = 12
+    private let padding: CGFloat = 8
     private let buttonSize: CGFloat = 60
     private let buttonGap: CGFloat = 12
 
     var body: some View {
         let dpadSize: CGFloat = 150
 
-        VStack(spacing: 10) {
+        VStack(spacing: 8) {
             // D-pad
             DPadView(onPress: { manager.pressButton($0) }, size: dpadSize)
+                .padding(.top, 15)
 
             // Buttons matching Apple TV remote layout
             VStack(spacing: buttonGap) {
@@ -300,8 +314,7 @@ struct AppGridView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 24)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             ScrollView {
                 LazyVGrid(columns: columns, spacing: 8) {
@@ -314,10 +327,9 @@ struct AppGridView: View {
                         }
                     }
                 }
-                .padding(.horizontal, 12)
+                .padding(.horizontal, 8)
                 .padding(.bottom, 10)
             }
-            .frame(maxHeight: 240)
             .onChange(of: manager.installedApps.map(\.bundleID)) {
                 iconLoader.loadIcons(for: manager.installedApps.map(\.bundleID))
             }
@@ -336,21 +348,18 @@ struct AppButton: View {
     var body: some View {
         Button(action: action) {
             VStack(spacing: 4) {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(.quaternary)
-                    .frame(height: 36)
-                    .overlay {
-                        if let icon {
-                            Image(nsImage: icon)
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
-                        } else {
-                            Image(systemName: "app.fill")
-                                .font(.title3)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
+                if let icon {
+                    Image(nsImage: icon)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(height: 36)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                } else {
+                    Image(systemName: "app.fill")
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+                        .frame(height: 36)
+                }
                 Text(name)
                     .font(.caption2)
                     .lineLimit(1)
