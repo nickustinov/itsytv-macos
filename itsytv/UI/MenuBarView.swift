@@ -77,15 +77,8 @@ struct DeviceRow: View {
             HStack {
                 Image(systemName: "appletv.fill")
                     .foregroundStyle(.secondary)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(device.name)
-                        .font(.body)
-                    if let model = device.modelName {
-                        Text(model)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
+                Text(device.name)
+                    .font(.body)
                 Spacer()
                 if KeychainStorage.load(for: device.id) != nil {
                     Image(systemName: "checkmark.circle.fill")
@@ -141,11 +134,17 @@ struct PairingView: View {
     }
 }
 
+enum RemoteTab: String, CaseIterable {
+    case remote = "Remote"
+    case apps = "Apps"
+}
+
 struct RemoteControlView: View {
     @Environment(AppleTVManager.self) private var manager
+    @State private var selectedTab: RemoteTab = .remote
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 12) {
             // Header
             HStack {
                 Image(systemName: "appletv.fill")
@@ -164,6 +163,30 @@ struct RemoteControlView: View {
             .padding(.horizontal, 16)
             .padding(.top, 12)
 
+            // Tab picker
+            Picker("", selection: $selectedTab) {
+                ForEach(RemoteTab.allCases, id: \.self) { tab in
+                    Text(tab.rawValue).tag(tab)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 16)
+
+            switch selectedTab {
+            case .remote:
+                RemoteTabContent()
+            case .apps:
+                AppGridView()
+            }
+        }
+    }
+}
+
+struct RemoteTabContent: View {
+    @Environment(AppleTVManager.self) private var manager
+
+    var body: some View {
+        VStack(spacing: 16) {
             // D-pad
             DPadView { button in
                 manager.pressButton(button)
@@ -193,6 +216,84 @@ struct RemoteControlView: View {
             }
             .padding(.bottom, 16)
         }
+    }
+}
+
+struct AppGridView: View {
+    @Environment(AppleTVManager.self) private var manager
+    @Environment(AppIconLoader.self) private var iconLoader
+
+    private let columns = [
+        GridItem(.flexible(), spacing: 8),
+        GridItem(.flexible(), spacing: 8),
+    ]
+
+    var body: some View {
+        if manager.installedApps.isEmpty {
+            VStack(spacing: 8) {
+                ProgressView()
+                Text("Loading apps...")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 24)
+        } else {
+            ScrollView {
+                LazyVGrid(columns: columns, spacing: 8) {
+                    ForEach(manager.installedApps, id: \.bundleID) { app in
+                        AppButton(
+                            name: app.name,
+                            icon: iconLoader.icons[app.bundleID]
+                        ) {
+                            manager.launchApp(bundleID: app.bundleID)
+                        }
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 12)
+            }
+            .frame(maxHeight: 280)
+            .onChange(of: manager.installedApps.map(\.bundleID)) {
+                iconLoader.loadIcons(for: manager.installedApps.map(\.bundleID))
+            }
+            .onAppear {
+                iconLoader.loadIcons(for: manager.installedApps.map(\.bundleID))
+            }
+        }
+    }
+}
+
+struct AppButton: View {
+    let name: String
+    let icon: NSImage?
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(.quaternary)
+                    .frame(height: 40)
+                    .overlay {
+                        if let icon {
+                            Image(nsImage: icon)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                        } else {
+                            Image(systemName: "app.fill")
+                                .font(.title3)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                Text(name)
+                    .font(.caption2)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+        }
+        .buttonStyle(.plain)
     }
 }
 

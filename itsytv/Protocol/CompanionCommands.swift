@@ -1,4 +1,7 @@
 import Foundation
+import os.log
+
+private let log = Logger(subsystem: "com.itsytv.app", category: "Commands")
 
 /// HID button values for the Companion protocol `_hidC` command.
 enum CompanionButton: Int64 {
@@ -42,12 +45,52 @@ extension CompanionConnection {
         }
     }
 
+    /// Start a companion session. Must be called after pair-verify before other commands.
+    func startSession(completion: @escaping (Int64?) -> Void) {
+        let localSID = Int64.random(in: 0...Int64(UInt32.max))
+        log.info("Starting session with local SID=\(localSID)")
+        sendRequest(
+            eventName: "_sessionStart",
+            content: .dictionary([
+                ("_srvT", .string("com.apple.tvremoteservices")),
+                ("_sid", .int(localSID)),
+            ]),
+            responseHandler: { response in
+                if let content = response["_c"],
+                   let remoteSID = content["_sid"]?.intValue {
+                    let fullSID = (remoteSID << 32) | localSID
+                    log.info("Session started: remoteSID=\(remoteSID) fullSID=0x\(String(fullSID, radix: 16))")
+                    completion(fullSID)
+                } else {
+                    log.warning("Session start response missing _sid")
+                    completion(nil)
+                }
+            }
+        )
+    }
+
     /// Fetch the list of launchable applications.
     func fetchApps(completion: @escaping ([(bundleID: String, name: String)]) -> Void) {
-        let xid = sendRequest(eventName: "FetchLaunchableApplicationsEvent")
-        // The response will come asynchronously via onFrame
-        // Caller needs to match on _x == xid
-        _ = xid
+        log.info("Sending FetchLaunchableApplicationsEvent request")
+        sendRequest(eventName: "FetchLaunchableApplicationsEvent", content: .dict([]), responseHandler: { response in
+            log.info("Got FetchLaunchableApplicationsEvent response")
+            var apps: [(bundleID: String, name: String)] = []
+            if let content = response["_c"]?.dictValue {
+                log.info("Response _c dict has \(content.count) entries")
+                for pair in content {
+                    guard let bundleID = pair.key.stringValue,
+                          let name = pair.value.stringValue else {
+                        log.warning("Skipping non-string pair: key=\(String(describing: pair.key)) value=\(String(describing: pair.value))")
+                        continue
+                    }
+                    apps.append((bundleID: bundleID, name: name))
+                }
+            } else {
+                log.warning("Response has no _c dict — keys: \(response.dictValue?.map { String(describing: $0.key) } ?? [])")
+            }
+            log.info("Parsed \(apps.count) apps")
+            completion(apps)
+        })
     }
 
     /// Launch an app by bundle ID.

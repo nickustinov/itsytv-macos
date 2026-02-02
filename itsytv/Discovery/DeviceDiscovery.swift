@@ -1,113 +1,102 @@
 import Foundation
-import Network
+import os.log
 
-final class DeviceDiscovery {
-    private var browser: NWBrowser?
+private let log = Logger(subsystem: "com.itsytv.app", category: "Discovery")
+
+/// Discovers Apple TV devices via Bonjour _companion-link._tcp and resolves their TXT records
+/// to filter by device type (rpFl flags).
+final class DeviceDiscovery: NSObject {
+    private var browser: NetServiceBrowser?
     private var onChange: (([AppleTVDevice]) -> Void)?
+    private var services: [String: NetService] = [:]
     private var devices: [String: AppleTVDevice] = [:]
 
     func start(onChange: @escaping ([AppleTVDevice]) -> Void) {
         self.onChange = onChange
 
-        let parameters = NWParameters()
-        parameters.includePeerToPeer = true
-
-        let browser = NWBrowser(
-            for: .bonjour(type: "_companion-link._tcp", domain: "local."),
-            using: parameters
-        )
-
-        browser.browseResultsChangedHandler = { [weak self] results, _ in
-            guard let self else { return }
-            self.devices.removeAll()
-            for result in results {
-                if case let .service(name, _, _, _) = result.endpoint {
-                    let metadata = result.metadata
-                    var modelName: String?
-                    if case let .bonjour(txtRecord) = metadata {
-                        modelName = txtRecord["rpMd"]
-                    }
-                    let device = AppleTVDevice(
-                        id: name,
-                        name: name,
-                        host: "",
-                        port: 0,
-                        modelName: modelName
-                    )
-                    self.devices[name] = device
-                }
-            }
-            DispatchQueue.main.async {
-                onChange(Array(self.devices.values))
-            }
-        }
-
-        browser.stateUpdateHandler = { state in
-            switch state {
-            case .ready:
-                break
-            case .failed(let error):
-                print("Discovery failed: \(error)")
-            default:
-                break
-            }
-        }
-
-        browser.start(queue: .global(qos: .userInitiated))
+        let browser = NetServiceBrowser()
+        browser.delegate = self
+        browser.searchForServices(ofType: "_companion-link._tcp.", inDomain: "local.")
         self.browser = browser
     }
 
     func stop() {
-        browser?.cancel()
+        browser?.stop()
         browser = nil
+        services.removeAll()
         devices.removeAll()
     }
 
-    /// Resolve a discovered device endpoint to get its host and port.
-    func resolve(_ device: AppleTVDevice, completion: @escaping (AppleTVDevice?) -> Void) {
-        guard browser != nil else {
-            completion(nil)
+    fileprivate func notifyChange() {
+        let current = Array(devices.values)
+        DispatchQueue.main.async { [weak self] in
+            self?.onChange?(current)
+        }
+    }
+
+    fileprivate func processResolved(_ service: NetService) {
+        guard let txtData = service.txtRecordData() else {
+            log.info("No TXT data for \(service.name)")
             return
         }
 
-        let endpoint = NWEndpoint.service(
-            name: device.name,
-            type: "_companion-link._tcp",
-            domain: "local.",
-            interface: nil
-        )
-
-        let parameters = NWParameters.tcp
-        let connection = NWConnection(to: endpoint, using: parameters)
-
-        connection.stateUpdateHandler = { state in
-            switch state {
-            case .ready:
-                if let innerEndpoint = connection.currentPath?.remoteEndpoint,
-                   case let .hostPort(host, port) = innerEndpoint {
-                    let resolved = AppleTVDevice(
-                        id: device.id,
-                        name: device.name,
-                        host: "\(host)",
-                        port: port.rawValue,
-                        modelName: device.modelName
-                    )
-                    DispatchQueue.main.async {
-                        completion(resolved)
-                    }
-                    connection.cancel()
-                } else {
-                    DispatchQueue.main.async { completion(nil) }
-                    connection.cancel()
-                }
-            case .failed:
-                DispatchQueue.main.async { completion(nil) }
-                connection.cancel()
-            default:
-                break
+        let txtDict = NetService.dictionary(fromTXTRecord: txtData)
+        var props: [String: String] = [:]
+        for (key, value) in txtDict {
+            if let str = String(data: value, encoding: .utf8) {
+                props[key] = str
             }
         }
 
-        connection.start(queue: .global(qos: .userInitiated))
+        let modelName = props["rpMd"]
+        let flagStr = props["rpFl"] ?? "0x0"
+        let flags = UInt64(flagStr.replacingOccurrences(of: "0x", with: ""), radix: 16) ?? 0
+
+        log.info("Resolved: \(service.name) model=\(modelName ?? "nil") flags=0x\(String(flags, radix: 16))")
+
+        // Only show devices that support PIN pairing (Apple TVs).
+        // HomePods, Macs, iPads etc. don't have the 0x4000 flag.
+        guard flags & 0x4000 != 0 else {
+            devices.removeValue(forKey: service.name)
+            notifyChange()
+            return
+        }
+
+        let device = AppleTVDevice(
+            id: service.name,
+            name: service.name,
+            host: "",
+            port: 0,
+            modelName: modelName
+        )
+        devices[service.name] = device
+        notifyChange()
+    }
+}
+
+extension DeviceDiscovery: NetServiceBrowserDelegate {
+    func netServiceBrowser(_ browser: NetServiceBrowser, didFind service: NetService, moreComing: Bool) {
+        guard services[service.name] == nil else { return }
+        log.info("Found service: \(service.name)")
+        services[service.name] = service
+        service.delegate = self
+        service.resolve(withTimeout: 5.0)
+    }
+
+    func netServiceBrowser(_ browser: NetServiceBrowser, didRemove service: NetService, moreComing: Bool) {
+        log.info("Removed service: \(service.name)")
+        services.removeValue(forKey: service.name)
+        devices.removeValue(forKey: service.name)
+        notifyChange()
+    }
+}
+
+extension DeviceDiscovery: NetServiceDelegate {
+    func netServiceDidResolveAddress(_ sender: NetService) {
+        processResolved(sender)
+    }
+
+    func netService(_ sender: NetService, didNotResolve errorDict: [String: NSNumber]) {
+        log.warning("Failed to resolve \(sender.name): \(errorDict)")
     }
 }

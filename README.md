@@ -5,7 +5,8 @@ A native macOS menu bar app for controlling your Apple TV using the Companion Li
 ## Features
 
 - **Menu bar remote** — Control your Apple TV from the macOS menu bar with a compact remote interface
-- **Automatic discovery** — Finds Apple TVs on your network via Bonjour (`_companion-link._tcp`)
+- **App launcher** — Browse installed apps in a grid with icons fetched from the App Store, launch with a click
+- **Automatic discovery** — Finds Apple TVs on your network via Bonjour, filters out HomePods/Macs/iPads
 - **Secure pairing** — SRP-based pair-setup with PIN verification, identical to HomeKit authentication
 - **Encrypted communication** — ChaCha20-Poly1305 transport encryption with HKDF-derived session keys
 - **Credential storage** — Pairing credentials stored securely in macOS Keychain
@@ -16,14 +17,15 @@ A native macOS menu bar app for controlling your Apple TV using the Companion Li
 
 ## How it works
 
-itsytv communicates with Apple TV using the **Companion Link Protocol**, the same protocol used by the iOS Remote app. The connection flow:
+Itsytv communicates with Apple TV using the **Companion Link Protocol**, the same protocol used by the iOS Remote app. The connection flow:
 
-1. **Discovery** — NWBrowser finds Apple TVs advertising `_companion-link._tcp` on the local network
+1. **Discovery** — Bonjour browsing for `_companion-link._tcp` with TXT record filtering (`rpFl` flags) to show only Apple TVs
 2. **Pair-setup** (first time) — SRP-6a handshake with a 4-digit PIN displayed on the TV, exchanging Ed25519 long-term keys
 3. **Pair-verify** (subsequent connections) — Curve25519 ephemeral key exchange using stored credentials
-4. **Encrypted session** — All commands sent as OPACK-encoded messages over ChaCha20-Poly1305 encrypted frames
+4. **Session start** — `_sessionStart` handshake to establish a companion session
+5. **Encrypted session** — All commands sent as OPACK-encoded messages over ChaCha20-Poly1305 encrypted frames, with periodic keep-alive
 
-Commands are sent as HID events matching the physical Siri Remote button values.
+Remote control commands are sent as HID events. App list is fetched via `FetchLaunchableApplicationsEvent` and apps are launched via `_launchApp`.
 
 ## Requirements
 
@@ -70,21 +72,22 @@ itsytv/
 ├── Info.plist                   # Bundle config, network permissions
 ├── itsytv.entitlements          # Sandbox entitlements
 ├── Discovery/
-│   └── DeviceDiscovery.swift    # NWBrowser for Bonjour discovery
+│   └── DeviceDiscovery.swift    # NetServiceBrowser for Bonjour discovery + TXT record filtering
 ├── Protocol/
 │   ├── OPACK.swift              # Apple's OPACK binary serialization (encode/decode)
 │   ├── TLV8.swift               # TLV8 encoding with 255-byte fragmentation
 │   ├── CompanionFrame.swift     # Frame type enum + 4-byte header parse/serialize
-│   ├── CompanionConnection.swift # TCP connection, frame buffering, encryption
-│   ├── CompanionCommands.swift  # HID button commands, app launching
-│   └── AppleTVManager.swift     # Orchestrator: discovery → pairing → commands
+│   ├── CompanionConnection.swift # TCP connection, frame buffering, encryption, keep-alive
+│   ├── CompanionCommands.swift  # HID buttons, session start, app fetching/launching
+│   └── AppleTVManager.swift     # Orchestrator: discovery → pairing → session → commands
 ├── Crypto/
 │   ├── PairSetup.swift          # SRP pair-setup (M1-M6) with Ed25519 identity exchange
 │   ├── PairVerify.swift         # Curve25519 pair-verify (M1-M4) for session establishment
 │   ├── CompanionCrypto.swift    # ChaCha20-Poly1305 transport encryption
 │   └── KeychainStorage.swift    # Secure credential persistence
 └── UI/
-    └── MenuBarView.swift        # SwiftUI views: device list, pairing, remote, settings
+    ├── MenuBarView.swift        # SwiftUI views: device list, pairing, remote, app grid, settings
+    └── AppIconLoader.swift      # Fetches app icons from iTunes Lookup API
 
 Tests/
 ├── OPACKTests.swift             # 22 tests for OPACK encode/decode

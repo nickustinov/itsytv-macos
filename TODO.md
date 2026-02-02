@@ -2,8 +2,7 @@
 
 ## Companion protocol features
 
-- [ ] **Media controls** — Play, pause, next/prev track, skip forward/back via `_mcc` command (more reliable than HID for playback control)
-- [ ] **App list and launch** — Fetch installed apps via `FetchLaunchableApplicationsEvent`, launch by bundle ID or URL via `_launchApp`
+- [x] **App list and launch** — Fetch installed apps via `FetchLaunchableApplicationsEvent`, launch by bundle ID via `_launchApp`
 - [ ] **Power state** — Monitor awake/asleep/screensaver via `FetchAttentionState`, subscribe to `SystemStatus` events
 - [ ] **Event subscription** — Subscribe to `_iMC` (media control flags), `SystemStatus` (power state) via `_interest` command
 - [ ] **User accounts** — List and switch between Apple TV user profiles via `FetchUserAccountsEvent`/`SwitchUserAccountEvent`
@@ -12,6 +11,7 @@
 
 ## MRP protocol features
 
+- [ ] **Media controls** — Play, pause, next/prev track, skip forward/back via MRP commands (more reliable than HID for playback control)
 - [ ] **Now playing** — Title, artist, album, playback state, position, duration via MRP `SetStateMessage` push updates
 - [ ] **Artwork** — Album art / video thumbnail via MRP `PlaybackQueueRequestMessage`
 - [ ] **Mini player UI** — Compact now-playing widget in the menu bar with artwork, metadata, and transport controls

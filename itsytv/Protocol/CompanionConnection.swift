@@ -11,6 +11,8 @@ final class CompanionConnection {
     private var buffer = Data()
     private var crypto: CompanionCrypto?
     private var nextXID: Int64
+    private var pendingResponses: [Int64: (OPACK.Value) -> Void] = [:]
+    private var keepAliveTimer: DispatchSourceTimer?
 
     var onFrame: ((CompanionFrame) -> Void)?
     var onDisconnect: ((Swift.Error?) -> Void)?
@@ -58,14 +60,35 @@ final class CompanionConnection {
     }
 
     func disconnect() {
+        stopKeepAlive()
         connection?.cancel()
         connection = nil
         crypto = nil
         buffer = Data()
+        pendingResponses.removeAll()
     }
 
     func enableEncryption(_ crypto: CompanionCrypto) {
         self.crypto = crypto
+    }
+
+    /// Start sending periodic NoOp frames to keep the connection alive.
+    func startKeepAlive(interval: TimeInterval = 30) {
+        stopKeepAlive()
+        let timer = DispatchSource.makeTimerSource(queue: .global(qos: .utility))
+        timer.schedule(deadline: .now() + interval, repeating: interval)
+        timer.setEventHandler { [weak self] in
+            guard let self, self.connection != nil else { return }
+            log.debug("Sending keep-alive NoOp")
+            self.send(frame: CompanionFrame(type: .noOp, payload: Data()))
+        }
+        timer.resume()
+        keepAliveTimer = timer
+    }
+
+    private func stopKeepAlive() {
+        keepAliveTimer?.cancel()
+        keepAliveTimer = nil
     }
 
     /// Send a raw frame. If encryption is active, encrypts the payload.
@@ -109,10 +132,15 @@ final class CompanionConnection {
     func sendRequest(
         eventName: String? = nil,
         content: OPACK.Value? = nil,
+        responseHandler: ((OPACK.Value) -> Void)? = nil,
         completion: ((Swift.Error?) -> Void)? = nil
     ) -> Int64 {
         let xid = nextXID
         nextXID += 1
+
+        if let responseHandler {
+            pendingResponses[xid] = responseHandler
+        }
 
         var pairs: [(String, OPACK.Value)] = [
             ("_t", .int(CompanionMessageType.request.rawValue)),
@@ -127,6 +155,18 @@ final class CompanionConnection {
 
         sendCommand(.dictionary(pairs), completion: completion)
         return xid
+    }
+
+    /// Dispatch a response to its pending handler. Returns true if a handler was found.
+    @discardableResult
+    func dispatchResponse(xid: Int64, message: OPACK.Value) -> Bool {
+        guard let handler = pendingResponses.removeValue(forKey: xid) else {
+            log.debug("No pending handler for xid=\(xid) (pending: \(self.pendingResponses.keys.sorted()))")
+            return false
+        }
+        log.debug("Dispatching response for xid=\(xid)")
+        handler(message)
+        return true
     }
 
     /// Send an event (type=1).
@@ -146,12 +186,15 @@ final class CompanionConnection {
     private func startReceiving() {
         connection?.receive(minimumIncompleteLength: 1, maximumLength: 65536) { [weak self] content, _, isComplete, error in
             if let content {
+                log.debug("Received \(content.count) bytes on wire (buffer was \(self?.buffer.count ?? 0) bytes)")
                 self?.buffer.append(content)
                 self?.processBuffer()
             }
             if isComplete {
+                log.info("Connection complete (EOF)")
                 self?.onDisconnect?(nil)
             } else if let error {
+                log.error("Connection error: \(error.localizedDescription)")
                 self?.onDisconnect?(error)
             } else {
                 self?.startReceiving()

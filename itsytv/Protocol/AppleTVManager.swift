@@ -11,6 +11,7 @@ final class AppleTVManager {
     var discoveredDevices: [AppleTVDevice] = []
     var connectedDeviceName: String?
     var isScanning = false
+    var installedApps: [(bundleID: String, name: String)] = []
 
     private(set) var connection: CompanionConnection?
     private var pairSetup: PairSetup?
@@ -89,6 +90,7 @@ final class AppleTVManager {
         connection = nil
         connectionStatus = .disconnected
         connectedDeviceName = nil
+        installedApps = []
     }
 
     // MARK: - Pairing
@@ -225,9 +227,7 @@ final class AppleTVManager {
             if let crypto = verify.deriveTransportKeys() {
                 connection?.enableEncryption(crypto)
                 log.info("Pair-verify complete, encrypted session established")
-                DispatchQueue.main.async {
-                    self.connectionStatus = .connected
-                }
+                self.startSession()
             } else {
                 log.error("Failed to derive transport keys")
                 DispatchQueue.main.async {
@@ -240,9 +240,39 @@ final class AppleTVManager {
         }
     }
 
+    private func startSession() {
+        connection?.startSession { [weak self] sid in
+            if let sid {
+                log.info("Session ready, SID=0x\(String(sid, radix: 16))")
+            } else {
+                log.warning("Session start failed, attempting fetchApps anyway")
+            }
+            self?.connection?.startKeepAlive()
+            DispatchQueue.main.async {
+                self?.connectionStatus = .connected
+                self?.fetchApps()
+            }
+        }
+    }
+
+    func fetchApps() {
+        log.info("fetchApps called, connection=\(self.connection != nil)")
+        connection?.fetchApps { [weak self] apps in
+            log.info("fetchApps completion: \(apps.count) apps received")
+            DispatchQueue.main.async {
+                self?.installedApps = apps.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+            }
+        }
+    }
+
     private func handleOPACKMessage(_ frame: CompanionFrame) {
-        guard let message = try? OPACK.unpack(frame.payload) else { return }
+        guard let message = try? OPACK.unpack(frame.payload) else {
+            log.warning("Failed to unpack OPACK payload (\(frame.payload.count) bytes)")
+            return
+        }
         let type = message["_t"]?.intValue
+        let keys = message.dictValue?.map { String(describing: $0.key) } ?? []
+        log.debug("OPACK message: _t=\(type ?? -1) keys=\(keys)")
 
         switch type {
         case CompanionMessageType.event.rawValue:
@@ -250,11 +280,13 @@ final class AppleTVManager {
             log.debug("Event: \(eventName ?? "?")")
 
         case CompanionMessageType.response.rawValue:
-            let xid = message["_x"]?.intValue
-            log.debug("Response: xid=\(xid ?? -1)")
+            let xid = message["_x"]?.intValue ?? -1
+            let eventName = message["_i"]?.stringValue
+            log.info("Response: xid=\(xid) event=\(eventName ?? "?")")
+            connection?.dispatchResponse(xid: xid, message: message)
 
         default:
-            break
+            log.debug("Unhandled OPACK message type: \(type ?? -1)")
         }
     }
 }
