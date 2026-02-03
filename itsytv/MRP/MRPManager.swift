@@ -14,6 +14,7 @@ final class MRPManager {
     var nowPlaying: NowPlayingState?
     var supportedCommands: Set<MRP_Command> = []
     var onDisconnect: ((Error?) -> Void)?
+    var onReady: (() -> Void)?
     var isConnected: Bool { tunnel != nil }
 
     private var tunnel: AirPlayMRPTunnel?
@@ -47,6 +48,7 @@ final class MRPManager {
                 log.info("MRP disconnected")
             }
             DispatchQueue.main.async {
+                self?.tunnel = nil
                 self?.nowPlaying = nil
                 self?.supportedCommands = []
                 self?.onDisconnect?(error)
@@ -168,6 +170,7 @@ final class MRPManager {
                 self?.sendPlaybackQueueRequest()
                 self?.tunnel?.startHeartbeat()
                 log.info("MRP session initialized")
+                self?.onReady?()
             }
         }
     }

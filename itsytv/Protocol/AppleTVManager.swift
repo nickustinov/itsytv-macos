@@ -25,6 +25,8 @@ final class AppleTVManager {
     /// Text input session state — kept alive while connected.
     private var textInputSessionUUID: Data?
     private var sentText = ""
+    private var mrpRetryCount = 0
+    private static let maxMRPRetries = 3
 
     let discovery = DeviceDiscovery()
 
@@ -121,6 +123,7 @@ final class AppleTVManager {
         currentCredentials = nil
         textInputSessionUUID = nil
         sentText = ""
+        mrpRetryCount = 0
         installedApps = []
     }
 
@@ -393,16 +396,28 @@ final class AppleTVManager {
 
         // AirPlay runs on port 7000 on the same host as companion-link
         let airplayPort: UInt16 = 7000
-        log.info("Starting MRP via AirPlay tunnel: \(device.host):\(airplayPort)")
+        let attempt = mrpRetryCount + 1
+        log.info("Starting MRP via AirPlay tunnel: \(device.host):\(airplayPort) (attempt \(attempt))")
         mrpManager.onDisconnect = { [weak self] error in
             guard let self else { return }
-            // MRP tunnel dropped — this is the real connection loss
             if self.connectionStatus == .connected {
-                log.info("MRP tunnel lost — disconnecting")
-                self.connectionStatus = .disconnected
-                self.connectedDeviceName = nil
-                self.connectedDevice = nil
+                if self.mrpRetryCount < Self.maxMRPRetries {
+                    self.mrpRetryCount += 1
+                    log.info("MRP tunnel lost — retrying (\(self.mrpRetryCount)/\(Self.maxMRPRetries))")
+                    DispatchQueue.global().asyncAfter(deadline: .now() + 1) { [weak self] in
+                        self?.startMRPViaTunnel()
+                    }
+                } else {
+                    log.info("MRP tunnel lost — max retries reached, disconnecting")
+                    self.mrpRetryCount = 0
+                    self.connectionStatus = .disconnected
+                    self.connectedDeviceName = nil
+                    self.connectedDevice = nil
+                }
             }
+        }
+        mrpManager.onReady = { [weak self] in
+            self?.mrpRetryCount = 0
         }
         mrpManager.connect(host: device.host, port: airplayPort, credentials: creds)
     }
