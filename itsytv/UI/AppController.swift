@@ -470,6 +470,7 @@ final class AppController: NSObject, NSMenuDelegate {
     // MARK: - NSMenuDelegate
 
     func menuWillOpen(_ menu: NSMenu) {
+        manager.refreshScanning()
         rebuildMenu()
     }
 }

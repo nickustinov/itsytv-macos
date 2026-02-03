@@ -20,6 +20,19 @@ final class DeviceDiscovery: NSObject {
         self.browser = browser
     }
 
+    func refresh() {
+        // Re-resolve all known services to pick up address changes
+        for service in services.values {
+            service.resolve(withTimeout: 5.0)
+        }
+        // Restart the browse to discover new devices (keeps existing ones)
+        browser?.stop()
+        let newBrowser = NetServiceBrowser()
+        newBrowser.delegate = self
+        newBrowser.searchForServices(ofType: "_companion-link._tcp.", inDomain: "local.")
+        self.browser = newBrowser
+    }
+
     func stop() {
         browser?.stop()
         browser = nil
@@ -76,7 +89,6 @@ final class DeviceDiscovery: NSObject {
 
 extension DeviceDiscovery: NetServiceBrowserDelegate {
     func netServiceBrowser(_ browser: NetServiceBrowser, didFind service: NetService, moreComing: Bool) {
-        guard services[service.name] == nil else { return }
         log.info("Found service: \(service.name)")
         services[service.name] = service
         service.delegate = self

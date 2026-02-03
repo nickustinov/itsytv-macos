@@ -40,6 +40,10 @@ final class AppleTVManager {
         }
     }
 
+    func refreshScanning() {
+        discovery.refresh()
+    }
+
     func stopScanning() {
         isScanning = false
         discovery.stop()
