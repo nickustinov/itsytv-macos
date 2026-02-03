@@ -28,6 +28,9 @@ final class AppleTVManager {
     private var sentText = ""
     private var mrpRetryCount = 0
     private static let maxMRPRetries = 3
+    private var isReconnecting = false
+    private var companionRetryCount = 0
+    private static let maxCompanionRetries = 3
 
     let discovery = DeviceDiscovery()
 
@@ -130,6 +133,8 @@ final class AppleTVManager {
         textInputSessionUUID = nil
         sentText = ""
         mrpRetryCount = 0
+        companionRetryCount = 0
+        isReconnecting = false
         installedApps = []
     }
 
@@ -329,20 +334,38 @@ final class AppleTVManager {
                 connection?.send(frame: m3Frame)
             } catch {
                 log.error("Pair-verify M2 failed: \(error.localizedDescription)")
-                let message: String
-                if error is CryptoKit.CryptoKitError {
-                    message = "Pairing credentials are invalid — try unpairing and pairing again"
+                if isReconnecting {
+                    log.info("Pair-verify failed during reconnect — retrying")
+                    connection?.disconnect()
+                    connection = nil
+                    if companionRetryCount < Self.maxCompanionRetries {
+                        companionRetryCount += 1
+                        DispatchQueue.global().asyncAfter(deadline: .now() + 1) { [weak self] in
+                            self?.reconnectCompanion()
+                        }
+                    } else {
+                        log.warning("Companion reconnect retries exhausted")
+                        companionRetryCount = 0
+                        isReconnecting = false
+                    }
                 } else {
-                    message = error.localizedDescription
-                }
-                DispatchQueue.main.async {
-                    self.connectionStatus = .error(message)
+                    let message: String
+                    if error is CryptoKit.CryptoKitError {
+                        message = "Pairing credentials are invalid — try unpairing and pairing again"
+                    } else {
+                        message = error.localizedDescription
+                    }
+                    DispatchQueue.main.async {
+                        self.connectionStatus = .error(message)
+                    }
                 }
             }
 
         case 0x04: // M4: verify complete, enable encryption
             if let crypto = verify.deriveTransportKeys() {
                 connection?.enableEncryption(crypto)
+                isReconnecting = false
+                companionRetryCount = 0
                 log.info("Pair-verify complete, encrypted session established")
                 self.startSession()
             } else {
@@ -391,6 +414,7 @@ final class AppleTVManager {
             return
         }
 
+        isReconnecting = true
         log.info("Reconnecting companion link to \(device.name)")
         let conn = CompanionConnection()
         self.connection = conn
