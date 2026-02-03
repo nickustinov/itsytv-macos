@@ -21,6 +21,7 @@ final class MRPManager {
 
     /// Pending response handlers keyed by identifier string
     private var pendingResponses: [String: (MRP_ProtocolMessage?) -> Void] = [:]
+    private let responseLock = NSLock()
 
     /// Playback queue content items and current location (from setStateMessage)
     private var contentItems: [MRP_ContentItem] = []
@@ -68,7 +69,9 @@ final class MRPManager {
         tunnel?.disconnect()
         tunnel = nil
         credentials = nil
+        responseLock.lock()
         pendingResponses.removeAll()
+        responseLock.unlock()
         contentItems = []
         queueLocation = 0
         artworkRequestPending = false
@@ -101,9 +104,11 @@ final class MRPManager {
         let identifier = UUID().uuidString.uppercased()
         message.identifier = identifier
 
+        responseLock.lock()
         pendingResponses[identifier] = { response in
             completion(response)
         }
+        responseLock.unlock()
 
         let typeDesc = String(describing: message.type)
         log.info("MRP send: \(typeDesc)")
@@ -111,7 +116,11 @@ final class MRPManager {
 
         // Timeout after 5 seconds
         DispatchQueue.global().asyncAfter(deadline: .now() + 5) { [weak self] in
-            if let handler = self?.pendingResponses.removeValue(forKey: identifier) {
+            guard let self else { return }
+            self.responseLock.lock()
+            let handler = self.pendingResponses.removeValue(forKey: identifier)
+            self.responseLock.unlock()
+            if let handler {
                 log.warning("MRP timeout: \(typeDesc)")
                 handler(nil)
             }
@@ -131,7 +140,10 @@ final class MRPManager {
         // Check for pending response handler by identifier
         if message.hasIdentifier {
             let id = message.identifier
-            if let handler = pendingResponses.removeValue(forKey: id) {
+            responseLock.lock()
+            let handler = pendingResponses.removeValue(forKey: id)
+            responseLock.unlock()
+            if let handler {
                 handler(message)
                 return
             }

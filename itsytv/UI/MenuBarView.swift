@@ -64,7 +64,7 @@ struct RemoteControlView: View {
                                 .background(Circle().fill(Color.secondary.opacity(0.12)))
                         }
                         .buttonStyle(.plain)
-                        .padding(.trailing, 8)
+                        .padding(.trailing, 24)
                     }
                 }
             }
@@ -83,8 +83,6 @@ struct NowPlayingBar: View {
         let hasContent = np != nil
 
         VStack(spacing: 6) {
-            Divider()
-
             // Artwork — full width, square
             if let data = np?.artworkData, let image = NSImage(data: data) {
                 Image(nsImage: image)
@@ -94,13 +92,11 @@ struct NowPlayingBar: View {
                     .frame(height: 160)
                     .clipped()
                     .cornerRadius(6)
-                    .padding(.horizontal, 8)
             } else {
                 RoundedRectangle(cornerRadius: 6)
                     .fill(.quaternary)
                     .frame(maxWidth: .infinity)
                     .frame(height: 160)
-                    .padding(.horizontal, 8)
             }
 
             // Title + artist
@@ -119,7 +115,6 @@ struct NowPlayingBar: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .opacity(hasContent ? 1 : 0)
-            .padding(.horizontal, 8)
 
             // Controls
             HStack(spacing: 28) {
@@ -157,10 +152,10 @@ struct NowPlayingBar: View {
                 nowPlaying: np,
                 duration: np?.duration ?? 0
             )
-            .padding(.horizontal, 8)
             .opacity(hasContent && (np?.duration ?? 0) > 0 ? 1 : 0.3)
         }
-        .padding(.bottom, 10)
+        .padding(.horizontal, 16)
+        .padding(.bottom, 16)
     }
 }
 
@@ -225,7 +220,7 @@ struct RemoteTabContent: View {
     var body: some View {
         let dpadSize: CGFloat = 150
 
-        VStack(spacing: 8) {
+        VStack(spacing: 4) {
             // D-pad
             DPadView(onPress: { manager.pressButton($0) }, size: dpadSize)
                 .padding(.top, 15)
@@ -234,10 +229,10 @@ struct RemoteTabContent: View {
             VStack(spacing: buttonGap) {
                 // Row 1: Back + TV/Home
                 HStack(spacing: buttonGap) {
-                    RemoteCircleButton(icon: "chevron.backward", size: buttonSize) {
+                    RemoteCircleButton(imageName: "btnBack", size: buttonSize) {
                         manager.pressButton(.menu)
                     }
-                    RemoteCircleButton(icon: "tv", size: buttonSize) {
+                    RemoteCircleButton(imageName: "btnHome", size: buttonSize) {
                         manager.pressButton(.home)
                     }
                 }
@@ -245,10 +240,10 @@ struct RemoteTabContent: View {
                 // Rows 2-3: Play/Pause + Keyboard left, Volume pill right
                 HStack(alignment: .top, spacing: buttonGap) {
                     VStack(spacing: buttonGap) {
-                        RemoteCircleButton(icon: "playpause.fill", size: buttonSize) {
+                        RemoteCircleButton(imageName: "btnPlayPause", size: buttonSize) {
                             manager.pressButton(.playPause)
                         }
-                        RemoteCircleButton(icon: "keyboard", size: buttonSize) {
+                        RemoteCircleButton(imageName: "btnKeyboard", size: buttonSize) {
                             showingKeyboard.toggle()
                             if !showingKeyboard {
                                 keyboardText = ""
@@ -380,53 +375,42 @@ struct DPadView: View {
                 .fill(Color(nsColor: DS.Colors.primary))
                 .frame(width: size, height: size)
 
-            // Center select button
+            // Center select button — larger, subtly distinct from outer ring
             Button { onPress(.select) } label: {
                 Circle()
-                    .fill(Color(nsColor: DS.Colors.primaryForeground).opacity(0.12))
-                    .frame(width: size * 0.35, height: size * 0.35)
+                    .fill(Color(nsColor: DS.Colors.primaryForeground).opacity(0.08))
+                    .frame(width: size * 0.5, height: size * 0.5)
             }
             .buttonStyle(.plain)
 
+            // Direction dots
             VStack {
-                DPadArrow(direction: .up) { onPress(.up) }
+                DPadDot { onPress(.up) }
                 Spacer()
-                DPadArrow(direction: .down) { onPress(.down) }
+                DPadDot { onPress(.down) }
             }
             .frame(height: size)
+            .padding(.vertical, 12)
 
             HStack {
-                DPadArrow(direction: .left) { onPress(.left) }
+                DPadDot { onPress(.left) }
                 Spacer()
-                DPadArrow(direction: .right) { onPress(.right) }
+                DPadDot { onPress(.right) }
             }
             .frame(width: size)
+            .padding(.horizontal, 12)
         }
     }
 }
 
-enum DPadDirection {
-    case up, down, left, right
-
-    var systemImage: String {
-        switch self {
-        case .up: "chevron.up"
-        case .down: "chevron.down"
-        case .left: "chevron.left"
-        case .right: "chevron.right"
-        }
-    }
-}
-
-struct DPadArrow: View {
-    let direction: DPadDirection
+struct DPadDot: View {
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: direction.systemImage)
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(Color(nsColor: DS.Colors.primaryForeground))
+            Circle()
+                .fill(Color(nsColor: DS.Colors.primaryForeground))
+                .frame(width: 5, height: 5)
                 .frame(width: 30, height: 30)
                 .contentShape(Rectangle())
         }
@@ -435,15 +419,16 @@ struct DPadArrow: View {
 }
 
 struct RemoteCircleButton: View {
-    let icon: String
+    let imageName: String
     let size: CGFloat
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: icon)
-                .font(.system(size: size * 0.33, weight: .medium))
-                .foregroundStyle(Color(nsColor: DS.Colors.primaryForeground))
+            Image(imageName)
+                .resizable()
+                .scaledToFit()
+                .frame(width: size * 0.33, height: size * 0.33)
                 .frame(width: size, height: size)
                 .background(Circle().fill(Color(nsColor: DS.Colors.primary)))
         }

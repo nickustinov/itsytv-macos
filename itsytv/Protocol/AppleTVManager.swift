@@ -14,6 +14,8 @@ final class AppleTVManager {
     var installedApps: [(bundleID: String, name: String)] = []
     var mrpManager = MRPManager()
 
+    var connectedDeviceID: String? { connectedDevice?.id }
+
     private(set) var connection: CompanionConnection?
     private var pairSetup: PairSetup?
     private var partialCredentials: HAPCredentials?

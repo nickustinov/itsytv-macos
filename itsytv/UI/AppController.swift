@@ -1,6 +1,9 @@
 import AppKit
 import SwiftUI
 import Combine
+import os.log
+
+private let log = Logger(subsystem: "com.itsytv.app", category: "Panel")
 
 final class AppController: NSObject, NSMenuDelegate {
 
@@ -10,6 +13,7 @@ final class AppController: NSObject, NSMenuDelegate {
     private let iconLoader: AppIconLoader
     private var observation: AnyCancellable?
     private var panel: NSPanel?
+    private var panelDeviceID: String?
     private var keyboardMonitor: Any?
 
     init(manager: AppleTVManager, iconLoader: AppIconLoader) {
@@ -260,22 +264,79 @@ final class AppController: NSObject, NSMenuDelegate {
         panel.delegate = self
         panel.hasShadow = true
 
-        if let buttonFrame = statusItem.button?.window?.frame {
-            let x = buttonFrame.midX - 88
-            let y = buttonFrame.minY - panel.frame.height
-            panel.setFrameOrigin(NSPoint(x: x, y: y))
-        }
-
         panel.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+
+        // Position after makeKeyAndOrderFront — AppKit constrains the
+        // frame during ordering for .statusBar level panels, so we must
+        // set the origin after the window is on screen.
+        if let origin = savedPanelOrigin(panelHeight: panel.frame.height), isPointOnScreen(origin, panelSize: panel.frame.size) {
+            log.info("showPanel: using saved origin (\(origin.x), \(origin.y))")
+            panel.setFrameOrigin(origin)
+        } else if let buttonFrame = statusItem.button?.window?.frame {
+            let x = buttonFrame.midX - 88
+            let y = buttonFrame.minY - panel.frame.height
+            log.info("showPanel: using status bar fallback (\(x), \(y))")
+            panel.setFrameOrigin(NSPoint(x: x, y: y))
+        } else {
+            log.warning("showPanel: no saved origin and no status bar button frame")
+        }
+
         self.panel = panel
+        self.panelDeviceID = manager.connectedDeviceID
         installKeyboardMonitor()
     }
 
     private func dismissPanel() {
         removeKeyboardMonitor()
+        savePanelPosition()
         panel?.close()
         panel = nil
+        panelDeviceID = nil
+    }
+
+    private func savePanelPosition() {
+        guard let frame = panel?.frame else {
+            log.debug("save: no panel frame")
+            return
+        }
+        guard let deviceID = panelDeviceID else {
+            log.debug("save: no panelDeviceID")
+            return
+        }
+        // Save top-left corner (x, maxY) — the visual anchor point.
+        // AppKit origin is bottom-left, but top-left stays stable
+        // regardless of panel height changes from SwiftUI layout.
+        let dict: [String: CGFloat] = ["x": frame.minX, "topY": frame.maxY]
+        UserDefaults.standard.set(dict, forKey: "panelOrigin_\(deviceID)")
+        log.info("save: topLeft (\(frame.minX), \(frame.maxY)) for device \(deviceID)")
+    }
+
+    private func savedPanelOrigin(panelHeight: CGFloat) -> NSPoint? {
+        guard let deviceID = manager.connectedDeviceID else {
+            log.debug("restore: no connectedDeviceID")
+            return nil
+        }
+        let key = "panelOrigin_\(deviceID)"
+        guard let dict = UserDefaults.standard.dictionary(forKey: key) else {
+            log.debug("restore: no saved value for key \(key)")
+            return nil
+        }
+        guard let x = dict["x"] as? CGFloat, let topY = dict["topY"] as? CGFloat else {
+            log.debug("restore: bad dict format: \(dict)")
+            return nil
+        }
+        // Convert top-left back to AppKit bottom-left origin
+        let origin = NSPoint(x: x, y: topY - panelHeight)
+        log.info("restore: topLeft (\(x), \(topY)) → origin (\(origin.x), \(origin.y)) for device \(deviceID)")
+        return origin
+    }
+
+    private func isPointOnScreen(_ origin: NSPoint, panelSize: NSSize) -> Bool {
+        let panelRect = NSRect(origin: origin, size: panelSize)
+        let onScreen = NSScreen.screens.contains { $0.visibleFrame.intersects(panelRect) }
+        log.info("onScreen check: (\(origin.x), \(origin.y)) size \(panelSize.width)x\(panelSize.height) → \(onScreen)")
+        return onScreen
     }
 
     private func installKeyboardMonitor() {
@@ -383,10 +444,12 @@ struct PanelContentView: View {
 extension AppController: NSWindowDelegate {
     func windowWillClose(_ notification: Notification) {
         if (notification.object as? NSPanel) === panel {
+            savePanelPosition()
             if manager.connectionStatus != .disconnected {
                 manager.disconnect()
             }
             panel = nil
+            panelDeviceID = nil
         }
     }
 }
