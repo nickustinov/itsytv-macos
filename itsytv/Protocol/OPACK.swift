@@ -400,10 +400,11 @@ enum OPACK {
     }
 
     private static func readLEUInt64(_ bytes: [UInt8], at i: Int) -> UInt64 {
-        UInt64(bytes[i]) | UInt64(bytes[i + 1]) << 8 |
-        UInt64(bytes[i + 2]) << 16 | UInt64(bytes[i + 3]) << 24 |
-        UInt64(bytes[i + 4]) << 32 | UInt64(bytes[i + 5]) << 40 |
-        UInt64(bytes[i + 6]) << 48 | UInt64(bytes[i + 7]) << 56
+        let lo: UInt64 = UInt64(bytes[i]) | UInt64(bytes[i + 1]) << 8 |
+            UInt64(bytes[i + 2]) << 16 | UInt64(bytes[i + 3]) << 24
+        let hi: UInt64 = UInt64(bytes[i + 4]) << 32 | UInt64(bytes[i + 5]) << 40 |
+            UInt64(bytes[i + 6]) << 48 | UInt64(bytes[i + 7]) << 56
+        return lo | hi
     }
 }
 
