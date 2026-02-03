@@ -19,6 +19,14 @@ A native macOS menu bar app for controlling your Apple TV.
 - **Launch at login** — Optional auto-start from the menu bar
 - **Unpair** — Remove pairing credentials from the panel menu
 
+## Perfect companion to Itsyhome
+
+Itsytv pairs naturally with [Itsyhome](https://itsyhome.app) — a free macOS menu bar app for controlling your HomeKit devices. Manage lights, cameras, thermostats, locks, scenes, and 18+ accessory types without ever opening the Home app.
+
+![Itsyhome](https://itsytv.app/itsyhome.png)
+
+[![Download on the Mac App Store](https://developer.apple.com/assets/elements/badges/download-on-the-mac-app-store.svg)](https://apps.apple.com/app/itsyhome/id6758070650)
+
 ## Requirements
 
 - macOS 14.0 or later
