@@ -144,7 +144,7 @@ final class AppController: NSObject, NSMenuDelegate {
                 }
             }
             menu.addItem(loginItem)
-            let quitItem = createActionItem(title: "Quit") { [weak self] in
+            let quitItem = createActionItem(title: "Quit", symbolName: "power") { [weak self] in
                 NSApplication.shared.terminate(nil)
             }
             menu.addItem(quitItem)
@@ -225,13 +225,24 @@ final class AppController: NSObject, NSMenuDelegate {
         return item
     }
 
-    private func createActionItem(title: String, action: @escaping () -> Void) -> NSMenuItem {
+    private func createActionItem(title: String, symbolName: String? = nil, action: @escaping () -> Void) -> NSMenuItem {
         let height = DS.ControlSize.menuItemHeight
         let width = DS.ControlSize.menuItemWidth
 
         let containerView = HighlightingMenuItemView(frame: NSRect(x: 0, y: 0, width: width, height: height))
 
-        let labelX = DS.Spacing.md
+        var labelX = DS.Spacing.md
+        if let symbolName {
+            let iconSize = DS.ControlSize.iconMedium
+            let iconY = (height - iconSize) / 2
+            let iconView = NSImageView(frame: NSRect(x: DS.Spacing.md, y: iconY, width: iconSize, height: iconSize))
+            iconView.image = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil)
+            iconView.contentTintColor = DS.Colors.iconForeground
+            iconView.imageScaling = .scaleProportionallyUpOrDown
+            containerView.addSubview(iconView)
+            labelX = DS.Spacing.md + iconSize + DS.Spacing.sm
+        }
+
         let labelY = (height - 17) / 2
         let labelWidth = width - labelX - DS.Spacing.md
         let nameLabel = NSTextField(labelWithString: title)
