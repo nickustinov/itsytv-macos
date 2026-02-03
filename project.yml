@@ -58,5 +58,6 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.itsytv.tests
+        PRODUCT_MODULE_NAME: itsytv
         GENERATE_INFOPLIST_FILE: true
         TEST_HOST: ""
