@@ -10,6 +10,7 @@ final class AppController: NSObject, NSMenuDelegate {
     private let iconLoader: AppIconLoader
     private var observation: AnyCancellable?
     private var panel: NSPanel?
+    private var keyboardMonitor: Any?
 
     init(manager: AppleTVManager, iconLoader: AppIconLoader) {
         self.manager = manager
@@ -214,7 +215,8 @@ final class AppController: NSObject, NSMenuDelegate {
 
     private func showPanel() {
         if let existing = panel {
-            existing.orderFront(nil)
+            existing.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
             return
         }
 
@@ -242,7 +244,7 @@ final class AppController: NSObject, NSMenuDelegate {
             hostingView.trailingAnchor.constraint(equalTo: vibrancy.trailingAnchor),
         ])
 
-        let panel = NSPanel(
+        let panel = KeyablePanel(
             contentRect: NSRect(x: 0, y: 0, width: 176, height: 400),
             styleMask: [.nonactivatingPanel],
             backing: .buffered,
@@ -264,13 +266,50 @@ final class AppController: NSObject, NSMenuDelegate {
             panel.setFrameOrigin(NSPoint(x: x, y: y))
         }
 
-        panel.orderFront(nil)
+        panel.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
         self.panel = panel
+        installKeyboardMonitor()
     }
 
     private func dismissPanel() {
+        removeKeyboardMonitor()
         panel?.close()
         panel = nil
+    }
+
+    private func installKeyboardMonitor() {
+        removeKeyboardMonitor()
+        keyboardMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self, self.panel?.isVisible == true else { return event }
+            if self.handleRemoteKeyDown(event) { return nil }
+            return event
+        }
+    }
+
+    private func removeKeyboardMonitor() {
+        if let monitor = keyboardMonitor {
+            NSEvent.removeMonitor(monitor)
+            keyboardMonitor = nil
+        }
+    }
+
+    private func handleRemoteKeyDown(_ event: NSEvent) -> Bool {
+        // Ignore when a text field is focused
+        if let responder = panel?.firstResponder, responder is NSTextView {
+            return false
+        }
+        switch event.keyCode {
+        case 126: manager.pressButton(.up); return true       // ↑
+        case 125: manager.pressButton(.down); return true     // ↓
+        case 123: manager.pressButton(.left); return true     // ←
+        case 124: manager.pressButton(.right); return true    // →
+        case 36:  manager.pressButton(.select); return true   // Return
+        case 51:  manager.pressButton(.menu); return true     // Backspace
+        case 53:  manager.pressButton(.home); return true     // Escape
+        case 49:  manager.pressButton(.playPause); return true // Space
+        default:  return false
+        }
     }
 
     // MARK: - NSMenuDelegate
@@ -284,35 +323,22 @@ final class AppController: NSObject, NSMenuDelegate {
 
 // MARK: - Panel SwiftUI content
 
+// MARK: - Key-capable panel
+
+private final class KeyablePanel: NSPanel {
+    override var canBecomeKey: Bool { true }
+}
+
 // MARK: - Arrow cursor hosting view
 
 private final class ArrowCursorHostingView<Content: View>: NSHostingView<Content> {
-    override func updateTrackingAreas() {
-        super.updateTrackingAreas()
-        // Remove any previous arrow tracking area
-        for area in trackingAreas where area.owner === self {
-            removeTrackingArea(area)
-        }
-        addTrackingArea(NSTrackingArea(
-            rect: .zero,
-            options: [.cursorUpdate, .activeAlways, .inVisibleRect],
-            owner: self,
-            userInfo: nil
-        ))
-    }
-
-    override func cursorUpdate(with event: NSEvent) {
-        // Let real text fields keep their I-beam
-        if let responder = window?.firstResponder,
-           responder is NSTextView {
-            return
-        }
-        NSCursor.arrow.set()
-    }
-
     override func resetCursorRects() {
         discardCursorRects()
         addCursorRect(bounds, cursor: .arrow)
+    }
+
+    override func addCursorRect(_ rect: NSRect, cursor: NSCursor) {
+        super.addCursorRect(rect, cursor: .arrow)
     }
 }
 

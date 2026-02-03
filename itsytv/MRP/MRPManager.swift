@@ -14,6 +14,7 @@ final class MRPManager {
     var nowPlaying: NowPlayingState?
     var supportedCommands: Set<MRP_Command> = []
     var onDisconnect: ((Error?) -> Void)?
+    var isConnected: Bool { tunnel != nil }
 
     private var tunnel: AirPlayMRPTunnel?
     private var credentials: HAPCredentials?
@@ -24,6 +25,8 @@ final class MRPManager {
     /// Playback queue content items and current location (from setStateMessage)
     private var contentItems: [MRP_ContentItem] = []
     private var queueLocation: UInt32 = 0
+    private var artworkRequestPending = false
+    private var currentContentIdentifier: String?
 
     // MARK: - Connection lifecycle
 
@@ -68,6 +71,8 @@ final class MRPManager {
         pendingResponses.removeAll()
         contentItems = []
         queueLocation = 0
+        artworkRequestPending = false
+        currentContentIdentifier = nil
         nowPlaying = nil
         supportedCommands = []
     }
@@ -203,7 +208,7 @@ final class MRPManager {
     private func sendClientUpdatesConfig(completion: @escaping (MRP_ProtocolMessage?) -> Void) {
         var config = MRP_ClientUpdatesConfigMessage()
         config.artworkUpdates = true
-        config.nowPlayingUpdates = false
+        config.nowPlayingUpdates = true
         config.volumeUpdates = true
         config.keyboardUpdates = true
         config.outputDeviceUpdates = true
@@ -227,6 +232,9 @@ final class MRPManager {
                 .compactMap { $0.hasCommand ? $0.command : nil }
             DispatchQueue.main.async {
                 self.supportedCommands = Set(cmds)
+                if cmds.isEmpty {
+                    self.nowPlaying = nil
+                }
             }
         }
 
@@ -246,6 +254,8 @@ final class MRPManager {
                     current.playbackRate = (pbState == .playing) ? 1 : 0
                     current.timestamp = Date()
                     self.nowPlaying = current
+                } else if pbState == .playing {
+                    self.requestArtworkIfNeeded()
                 }
             }
         }
@@ -271,6 +281,12 @@ final class MRPManager {
 
     // MARK: - Playback queue request
 
+    /// Request the playback queue with artwork, guarded to prevent concurrent requests.
+    private func requestArtworkIfNeeded() {
+        guard !artworkRequestPending else { return }
+        sendPlaybackQueueRequest()
+    }
+
     private func sendPlaybackQueueRequest() {
         var request = MRP_PlaybackQueueRequestMessage()
         request.location = 0
@@ -284,7 +300,9 @@ final class MRPManager {
         msg.type = .playbackQueueRequestMessage
         msg.MRP_playbackQueueRequestMessage = request
 
+        artworkRequestPending = true
         sendAndReceive(&msg) { [weak self] response in
+            self?.artworkRequestPending = false
             guard let response, response.hasMRP_setStateMessage else { return }
             self?.handleSetState(response)
         }
@@ -293,6 +311,7 @@ final class MRPManager {
     /// Build NowPlayingState from the current content item in the playback queue.
     private func updateNowPlayingFromContentItems() {
         guard !contentItems.isEmpty else {
+            currentContentIdentifier = nil
             DispatchQueue.main.async { self.nowPlaying = nil }
             return
         }
@@ -306,13 +325,29 @@ final class MRPManager {
         let hasContent = meta.hasTitle || meta.hasTrackArtistName || meta.hasAlbumName
 
         guard hasContent else {
+            currentContentIdentifier = nil
             DispatchQueue.main.async { self.nowPlaying = nil }
             return
         }
 
+        let itemID = item.hasIdentifier ? item.identifier : nil
+        let contentChanged = itemID != currentContentIdentifier
+        currentContentIdentifier = itemID
+
         let playbackRate = meta.hasPlaybackRate ? meta.playbackRate : (self.nowPlaying?.playbackRate ?? 0)
         let timestamp = Date()
-        let artworkData = item.hasArtworkData ? item.artworkData : self.nowPlaying?.artworkData
+
+        // Only carry forward artwork if the content item hasn't changed
+        let artworkData: Data?
+        if item.hasArtworkData {
+            artworkData = item.artworkData
+        } else if contentChanged {
+            artworkData = nil
+        } else {
+            artworkData = self.nowPlaying?.artworkData
+        }
+
+        let needsArtwork = artworkData == nil
 
         DispatchQueue.main.async {
             self.nowPlaying = NowPlayingState(
@@ -325,6 +360,9 @@ final class MRPManager {
                 timestamp: timestamp,
                 artworkData: artworkData
             )
+            if needsArtwork {
+                self.requestArtworkIfNeeded()
+            }
         }
     }
 }

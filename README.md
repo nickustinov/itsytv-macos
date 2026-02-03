@@ -9,6 +9,7 @@ A native macOS menu bar app for controlling your Apple TV.
 - **App launcher** — Browse installed apps in a grid with icons fetched from the App Store, launch with a click
 - **Credential storage** — Pairing credentials stored securely in macOS Keychain
 - **D-pad navigation** — Up, down, left, right, select with a circular remote layout
+- **Keyboard navigation** — Arrow keys for d-pad, Return for select, Backspace for menu/back, Escape for home, Space for play/pause
 - **Playback controls** — Play/pause, volume up/down
 - **System buttons** — Home, menu, back, sleep/wake
 - **Multiple devices** — Pair and switch between multiple Apple TVs

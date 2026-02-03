@@ -55,12 +55,13 @@ final class AppleTVManager {
                 // Once connected, MRP runs over the AirPlay tunnel — the companion
                 // link TCP connection closing is expected and should be ignored.
                 if self.connectionStatus == .connected {
-                    log.info("Companion link closed while MRP tunnel active — cleaning up companion")
+                    log.info("Companion link closed while MRP tunnel active — reconnecting")
                     self.connection?.stopKeepAlive()
                     self.connection?.stopTextInput()
                     self.connection = nil
                     self.textInputSessionUUID = nil
                     self.sentText = ""
+                    self.reconnectCompanion()
                     return
                 }
                 if let error {
@@ -317,6 +318,11 @@ final class AppleTVManager {
     }
 
     private func startSession() {
+        startCompanionSession()
+        startMRPViaTunnel()
+    }
+
+    private func startCompanionSession() {
         connection?.startSession { [weak self] sid in
             if let sid {
                 log.info("Session ready, SID=0x\(String(sid, radix: 16))")
@@ -336,12 +342,48 @@ final class AppleTVManager {
                 self?.connectionStatus = .connected
                 self?.fetchApps()
             }
-            // Resolve AirPlay service and start MRP tunnel
-            self?.startMRPViaTunnel()
+        }
+    }
+
+    private func reconnectCompanion() {
+        guard let device = connectedDevice, let credentials = currentCredentials else {
+            log.warning("Cannot reconnect companion: no device or credentials")
+            return
+        }
+
+        log.info("Reconnecting companion link to \(device.name)")
+        let conn = CompanionConnection()
+        self.connection = conn
+
+        conn.onDisconnect = { [weak self] error in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                if self.connectionStatus == .connected {
+                    log.info("Companion link closed while MRP tunnel active — reconnecting")
+                    self.connection?.stopKeepAlive()
+                    self.connection?.stopTextInput()
+                    self.connection = nil
+                    self.textInputSessionUUID = nil
+                    self.sentText = ""
+                    self.reconnectCompanion()
+                    return
+                }
+            }
+        }
+
+        conn.onFrame = { [weak self] frame in
+            self?.handleFrame(frame)
+        }
+
+        conn.connectToService(name: device.name)
+
+        DispatchQueue.global().asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            self?.startPairVerify(credentials: credentials)
         }
     }
 
     private func startMRPViaTunnel() {
+        guard !mrpManager.isConnected else { return }
         guard let device = connectedDevice, !device.host.isEmpty, let creds = currentCredentials else {
             log.warning("Cannot start MRP: no device host or credentials")
             return
