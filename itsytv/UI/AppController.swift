@@ -400,9 +400,13 @@ final class AppController: NSObject, NSMenuDelegate {
     }
 
     private func handleRemoteKeyDown(_ event: NSEvent) -> Bool {
-        // Ignore when a text field is focused
-        if let responder = panel?.firstResponder, responder is NSTextView {
-            return false
+        // Ignore when any text input is focused (field editor, NSTextField, or SwiftUI text)
+        if let responder = panel?.firstResponder {
+            var r: NSResponder? = responder
+            while let current = r {
+                if current is NSText || current is NSTextField { return false }
+                r = current.nextResponder
+            }
         }
         switch event.keyCode {
         case 126: manager.pressButton(.up); return true       // ↑

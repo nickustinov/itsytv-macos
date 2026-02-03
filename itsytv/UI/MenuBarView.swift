@@ -308,6 +308,14 @@ struct AppGridView: View {
         GridItem(.flexible(), spacing: 8),
     ]
 
+    private var thirdPartyApps: [(bundleID: String, name: String)] {
+        manager.installedApps.filter { AppIconLoader.builtInSymbols[$0.bundleID] == nil }
+    }
+
+    private var appleApps: [(bundleID: String, name: String)] {
+        manager.installedApps.filter { AppIconLoader.builtInSymbols[$0.bundleID] != nil }
+    }
+
     var body: some View {
         if manager.installedApps.isEmpty {
             VStack(spacing: 8) {
@@ -319,17 +327,37 @@ struct AppGridView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             ScrollView {
-                LazyVGrid(columns: columns, spacing: 8) {
-                    ForEach(manager.installedApps, id: \.bundleID) { app in
-                        AppButton(
-                            name: app.name,
-                            icon: iconLoader.icons[app.bundleID]
-                        ) {
-                            manager.launchApp(bundleID: app.bundleID)
+                VStack(spacing: 0) {
+                    // Third-party apps with real icons
+                    LazyVGrid(columns: columns, spacing: 8) {
+                        ForEach(thirdPartyApps, id: \.bundleID) { app in
+                            AppButton(
+                                name: app.name,
+                                icon: iconLoader.icons[app.bundleID]
+                            ) {
+                                manager.launchApp(bundleID: app.bundleID)
+                            }
+                        }
+                    }
+
+                    // Divider + Apple built-in apps
+                    if !appleApps.isEmpty {
+                        Divider()
+                            .padding(.vertical, 10)
+
+                        LazyVGrid(columns: columns, spacing: 8) {
+                            ForEach(appleApps, id: \.bundleID) { app in
+                                AppleAppButton(
+                                    name: app.name,
+                                    symbolName: AppIconLoader.builtInSymbols[app.bundleID]
+                                ) {
+                                    manager.launchApp(bundleID: app.bundleID)
+                                }
+                            }
                         }
                     }
                 }
-                .padding(.horizontal, 8)
+                .padding(.horizontal, 16)
                 .padding(.bottom, 10)
             }
             .onChange(of: manager.installedApps.map(\.bundleID)) {
@@ -347,21 +375,60 @@ struct AppButton: View {
     let icon: NSImage?
     let action: () -> Void
 
+    private let iconHeight: CGFloat = 42
+    private let cornerRadius: CGFloat = 10
+
     var body: some View {
         Button(action: action) {
             VStack(spacing: 4) {
                 if let icon {
                     Image(nsImage: icon)
                         .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(height: 36)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .aspectRatio(contentMode: .fill)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: iconHeight)
+                        .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
                 } else {
-                    Image(systemName: "app.fill")
-                        .font(.title3)
-                        .foregroundStyle(.secondary)
-                        .frame(height: 36)
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .fill(.quaternary)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: iconHeight)
+                        .overlay {
+                            Image(systemName: "app.fill")
+                                .font(.title3)
+                                .foregroundStyle(.secondary)
+                        }
                 }
+                Text(name)
+                    .font(.caption2)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct AppleAppButton: View {
+    let name: String
+    let symbolName: String?
+    let action: () -> Void
+
+    private let iconHeight: CGFloat = 42
+    private let cornerRadius: CGFloat = 10
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .fill(.quaternary)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: iconHeight)
+                    .overlay {
+                        Image(systemName: symbolName ?? "app.fill")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundStyle(.secondary)
+                    }
                 Text(name)
                     .font(.caption2)
                     .lineLimit(1)

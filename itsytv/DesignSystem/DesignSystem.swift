@@ -271,6 +271,7 @@ struct CapsuleSegmentPicker<T: Hashable>: View {
                             Capsule()
                                 .fill(selection == value ? Color(nsColor: DS.Colors.primary) : .clear)
                         )
+                        .contentShape(Capsule())
                         .foregroundStyle(selection == value ? Color(nsColor: DS.Colors.primaryForeground) : .secondary)
                 }
                 .buttonStyle(.plain)
