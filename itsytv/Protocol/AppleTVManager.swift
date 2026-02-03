@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 import os.log
 
 private let log = Logger(subsystem: "com.itsytv.app", category: "Manager")
@@ -47,6 +48,7 @@ final class AppleTVManager {
     // MARK: - Connection
 
     func connect(to device: AppleTVDevice) {
+        disconnect()
         connectionStatus = .connecting
         self.connectedDevice = device
 
@@ -323,8 +325,14 @@ final class AppleTVManager {
                 connection?.send(frame: m3Frame)
             } catch {
                 log.error("Pair-verify M2 failed: \(error.localizedDescription)")
+                let message: String
+                if error is CryptoKit.CryptoKitError {
+                    message = "Pairing credentials are invalid — try unpairing and pairing again"
+                } else {
+                    message = error.localizedDescription
+                }
                 DispatchQueue.main.async {
-                    self.connectionStatus = .error(error.localizedDescription)
+                    self.connectionStatus = .error(message)
                 }
             }
 
