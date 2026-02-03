@@ -54,10 +54,10 @@ final class AppleTVManager {
         conn.onDisconnect = { [weak self] error in
             DispatchQueue.main.async {
                 guard let self else { return }
-                // Once connected, MRP runs over the AirPlay tunnel — the companion
-                // link TCP connection closing is expected and should be ignored.
-                if self.connectionStatus == .connected {
-                    log.info("Companion link closed while MRP tunnel active — reconnecting")
+                // Once connected or mid-verify after pairing, the companion link
+                // closing is expected — MRP runs over the AirPlay tunnel.
+                if self.connectionStatus == .connected || self.currentCredentials != nil {
+                    log.info("Companion link closed while session active — reconnecting")
                     self.connection?.stopKeepAlive()
                     self.connection?.stopTextInput()
                     self.connection = nil

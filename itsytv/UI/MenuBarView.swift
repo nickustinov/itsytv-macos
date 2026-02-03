@@ -21,6 +21,12 @@ struct RemoteControlView: View {
                     .font(.subheadline)
                     .lineLimit(1)
                 Spacer()
+                PanelMenuButton {
+                    if let deviceID = manager.connectedDeviceID {
+                        KeychainStorage.delete(for: deviceID)
+                    }
+                    manager.disconnect()
+                }
                 PanelCloseButton { manager.disconnect() }
             }
             .padding(.horizontal, 8)

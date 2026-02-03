@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import Combine
+import ServiceManagement
 import os.log
 
 private let log = Logger(subsystem: "com.itsytv.app", category: "Panel")
@@ -72,9 +73,7 @@ final class AppController: NSObject, NSMenuDelegate {
         case .pairing, .error:
             rebuildMenu()
         case .connected:
-            if panel == nil {
-                menu.cancelTracking()
-            }
+            menu.cancelTracking()
             showPanel()
         }
     }
@@ -105,7 +104,7 @@ final class AppController: NSObject, NSMenuDelegate {
             }
             menu.addItem(dismissItem)
         case .connected:
-            return
+            buildDeviceList()
         }
 
         switch manager.connectionStatus {
@@ -113,6 +112,21 @@ final class AppController: NSObject, NSMenuDelegate {
             break
         default:
             menu.addItem(NSMenuItem.separator())
+            let loginItem = createCheckboxItem(
+                title: "Launch at login",
+                isOn: SMAppService.mainApp.status == .enabled
+            ) {
+                do {
+                    if SMAppService.mainApp.status == .enabled {
+                        try SMAppService.mainApp.unregister()
+                    } else {
+                        try SMAppService.mainApp.register()
+                    }
+                } catch {
+                    log.error("Failed to toggle login item: \(error.localizedDescription)")
+                }
+            }
+            menu.addItem(loginItem)
             let quitItem = createActionItem(title: "Quit") { [weak self] in
                 NSApplication.shared.terminate(nil)
             }
@@ -199,6 +213,39 @@ final class AppController: NSObject, NSMenuDelegate {
         let containerView = HighlightingMenuItemView(frame: NSRect(x: 0, y: 0, width: width, height: height))
 
         let labelX = DS.Spacing.md
+        let labelY = (height - 17) / 2
+        let labelWidth = width - labelX - DS.Spacing.md
+        let nameLabel = NSTextField(labelWithString: title)
+        nameLabel.frame = NSRect(x: labelX, y: labelY, width: labelWidth, height: 17)
+        nameLabel.font = DS.Typography.label
+        nameLabel.textColor = DS.Colors.foreground
+        nameLabel.lineBreakMode = .byTruncatingTail
+        containerView.addSubview(nameLabel)
+
+        containerView.onAction = action
+
+        let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+        item.view = containerView
+        return item
+    }
+
+    private func createCheckboxItem(title: String, isOn: Bool, action: @escaping () -> Void) -> NSMenuItem {
+        let height = DS.ControlSize.menuItemHeight
+        let width = DS.ControlSize.menuItemWidth
+
+        let containerView = HighlightingMenuItemView(frame: NSRect(x: 0, y: 0, width: width, height: height))
+
+        let checkSize: CGFloat = 14
+        let checkX = DS.Spacing.md
+        let checkY = (height - checkSize) / 2
+        let checkmark = NSTextField(labelWithString: isOn ? "✓" : "")
+        checkmark.frame = NSRect(x: checkX, y: checkY, width: checkSize, height: checkSize)
+        checkmark.font = NSFont.systemFont(ofSize: 12, weight: .semibold)
+        checkmark.textColor = DS.Colors.foreground
+        checkmark.alignment = .center
+        containerView.addSubview(checkmark)
+
+        let labelX = checkX + checkSize + DS.Spacing.xs
         let labelY = (height - 17) / 2
         let labelWidth = width - labelX - DS.Spacing.md
         let nameLabel = NSTextField(labelWithString: title)
@@ -376,9 +423,7 @@ final class AppController: NSObject, NSMenuDelegate {
     // MARK: - NSMenuDelegate
 
     func menuWillOpen(_ menu: NSMenu) {
-        if manager.connectionStatus == .disconnected {
-            rebuildMenu()
-        }
+        rebuildMenu()
     }
 }
 
@@ -400,6 +445,29 @@ private final class ArrowCursorHostingView<Content: View>: NSHostingView<Content
 
     override func addCursorRect(_ rect: NSRect, cursor: NSCursor) {
         super.addCursorRect(rect, cursor: .arrow)
+    }
+}
+
+struct PanelMenuButton: View {
+    let onUnpair: () -> Void
+
+    var body: some View {
+        Menu {
+            Button("Unpair", role: .destructive, action: onUnpair)
+        } label: {
+            ZStack {
+                Circle()
+                    .fill(Color.secondary.opacity(0.15))
+                    .frame(width: 20, height: 20)
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .buttonStyle(.plain)
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
     }
 }
 
@@ -584,16 +652,13 @@ final class PairingMenuItem: NSMenuItem {
 private final class PairedBadgeView: NSView {
 
     override func draw(_ dirtyRect: NSRect) {
-        let bg = NSColor(name: nil) { $0.isDark ? NSColor(white: 0.30, alpha: 1) : NSColor(white: 0.85, alpha: 1) }
-        let fg = DS.Colors.mutedForeground
-
-        bg.setFill()
+        NSColor.systemGreen.setFill()
         NSBezierPath(roundedRect: bounds, xRadius: 3, yRadius: 3).fill()
 
         let font = NSFont.systemFont(ofSize: 9, weight: .medium)
         let str = NSAttributedString(string: "PAIRED", attributes: [
             .font: font,
-            .foregroundColor: fg,
+            .foregroundColor: NSColor.white,
         ])
         let size = str.size()
         let x = (bounds.width - size.width) / 2
