@@ -229,28 +229,28 @@ struct RemoteTabContent: View {
 
         VStack(spacing: 4) {
             // D-pad
-            DPadView(onPress: { manager.pressButton($0) }, size: dpadSize)
+            DPadView(onPress: { button, action in manager.pressButton(button, action: action) }, size: dpadSize)
                 .padding(.top, 15)
 
             // Buttons matching Apple TV remote layout
             VStack(spacing: buttonGap) {
                 // Row 1: Back + TV/Home
                 HStack(spacing: buttonGap) {
-                    RemoteCircleButton(imageName: "btnBack", size: buttonSize) {
-                        manager.pressButton(.menu)
+                    RemoteCircleButton(imageName: "btnBack", size: buttonSize) { action in
+                        manager.pressButton(.menu, action: action)
                     }
-                    RemoteCircleButton(imageName: "btnHome", size: buttonSize) {
-                        manager.pressButton(.home)
+                    RemoteCircleButton(imageName: "btnHome", size: buttonSize) { action in
+                        manager.pressButton(.home, action: action)
                     }
                 }
 
                 // Rows 2-3: Play/Pause + Keyboard left, Volume pill right
                 HStack(alignment: .top, spacing: buttonGap) {
                     VStack(spacing: buttonGap) {
-                        RemoteCircleButton(imageName: "btnPlayPause", size: buttonSize) {
-                            manager.pressButton(.playPause)
+                        RemoteCircleButton(imageName: "btnPlayPause", size: buttonSize) { action in
+                            manager.pressButton(.playPause, action: action)
                         }
-                        RemoteCircleButton(imageName: "btnKeyboard", size: buttonSize) {
+                        RemoteCircleButton(imageName: "btnKeyboard", size: buttonSize) { _ in
                             showingKeyboard.toggle()
                             if !showingKeyboard {
                                 keyboardText = ""
@@ -440,7 +440,7 @@ struct AppleAppButton: View {
 }
 
 struct DPadView: View {
-    let onPress: (CompanionButton) -> Void
+    let onPress: (CompanionButton, InputAction) -> Void
     let size: CGFloat
 
     var body: some View {
@@ -450,26 +450,27 @@ struct DPadView: View {
                 .frame(width: size, height: size)
 
             // Center select button — larger, subtly distinct from outer ring
-            Button { onPress(.select) } label: {
-                Circle()
-                    .fill(Color(nsColor: DS.Colors.primaryForeground).opacity(0.08))
-                    .frame(width: size * 0.5, height: size * 0.5)
-            }
-            .buttonStyle(.plain)
+            Circle()
+                .fill(Color(nsColor: DS.Colors.primaryForeground).opacity(0.08))
+                .frame(width: size * 0.5, height: size * 0.5)
+                .contentShape(Circle())
+                .onTapGesture(count: 2) { onPress(.select, .doubleClick) }
+                .onTapGesture { onPress(.select, .click) }
+                .onLongPressGesture { onPress(.select, .hold) }
 
             // Direction dots
             VStack {
-                DPadDot { onPress(.up) }
+                DPadDot { action in onPress(.up, action) }
                 Spacer()
-                DPadDot { onPress(.down) }
+                DPadDot { action in onPress(.down, action) }
             }
             .frame(height: size)
             .padding(.vertical, 12)
 
             HStack {
-                DPadDot { onPress(.left) }
+                DPadDot { action in onPress(.left, action) }
                 Spacer()
-                DPadDot { onPress(.right) }
+                DPadDot { action in onPress(.right, action) }
             }
             .frame(width: size)
             .padding(.horizontal, 12)
@@ -478,35 +479,36 @@ struct DPadView: View {
 }
 
 struct DPadDot: View {
-    let action: () -> Void
+    let action: (InputAction) -> Void
 
     var body: some View {
-        Button(action: action) {
-            Circle()
-                .fill(Color(nsColor: DS.Colors.primaryForeground))
-                .frame(width: 5, height: 5)
-                .frame(width: 30, height: 30)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
+        Circle()
+            .fill(Color(nsColor: DS.Colors.primaryForeground))
+            .frame(width: 5, height: 5)
+            .frame(width: 30, height: 30)
+            .contentShape(Rectangle())
+            .onTapGesture(count: 2) { action(.doubleClick) }
+            .onTapGesture { action(.click) }
+            .onLongPressGesture { action(.hold) }
     }
 }
 
 struct RemoteCircleButton: View {
     let imageName: String
     let size: CGFloat
-    let action: () -> Void
+    let action: (InputAction) -> Void
 
     var body: some View {
-        Button(action: action) {
-            Image(imageName)
-                .resizable()
-                .scaledToFit()
-                .frame(width: size * 0.33, height: size * 0.33)
-                .frame(width: size, height: size)
-                .background(Circle().fill(Color(nsColor: DS.Colors.primary)))
-        }
-        .buttonStyle(.plain)
+        Image(imageName)
+            .resizable()
+            .scaledToFit()
+            .frame(width: size * 0.33, height: size * 0.33)
+            .frame(width: size, height: size)
+            .background(Circle().fill(Color(nsColor: DS.Colors.primary)))
+            .contentShape(Circle())
+            .onTapGesture(count: 2) { action(.doubleClick) }
+            .onTapGesture { action(.click) }
+            .onLongPressGesture { action(.hold) }
     }
 }
 

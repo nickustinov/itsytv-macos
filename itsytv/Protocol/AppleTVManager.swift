@@ -150,9 +150,16 @@ final class AppleTVManager {
 
     // MARK: - Commands
 
-    func pressButton(_ button: CompanionButton) {
-        let hold: TimeInterval = button == .siri ? 1.0 : 0.05
-        connection?.pressButton(button, holdDuration: hold)
+    func pressButton(_ button: CompanionButton, action: InputAction = .click) {
+        switch action {
+        case .click:
+            let hold: TimeInterval = button == .siri ? 1.0 : 0.05
+            connection?.pressButton(button, holdDuration: hold)
+        case .doubleClick:
+            connection?.doubleTapButton(button)
+        case .hold:
+            connection?.holdButton(button)
+        }
     }
 
     func launchApp(bundleID: String) {

@@ -26,23 +26,57 @@ enum CompanionButton: Int64 {
     case pageDown = 19
 }
 
+enum InputAction {
+    case click
+    case doubleClick
+    case hold
+}
+
 /// High-level command helpers for the Companion protocol.
 extension CompanionConnection {
 
-    /// Send a button press (down + up) with configurable hold duration.
+    /// Send a single button press (down + up) with configurable hold duration.
     func pressButton(_ button: CompanionButton, holdDuration: TimeInterval = 0.05, completion: ((Swift.Error?) -> Void)? = nil) {
-        // Button down (sent as request, matching pyatv)
+        sendButtonDown(button)
+        DispatchQueue.global().asyncAfter(deadline: .now() + holdDuration) { [weak self] in
+            self?.sendButtonUp(button, completion: completion)
+        }
+    }
+
+    /// Send a double-tap: two rapid press/release cycles.
+    func doubleTapButton(_ button: CompanionButton, completion: ((Swift.Error?) -> Void)? = nil) {
+        sendButtonDown(button)
+        DispatchQueue.global().asyncAfter(deadline: .now() + 0.05) { [weak self] in
+            self?.sendButtonUp(button)
+            DispatchQueue.global().asyncAfter(deadline: .now() + 0.05) { [weak self] in
+                self?.sendButtonDown(button)
+                DispatchQueue.global().asyncAfter(deadline: .now() + 0.05) { [weak self] in
+                    self?.sendButtonUp(button, completion: completion)
+                }
+            }
+        }
+    }
+
+    /// Send a hold press: down, wait 1 second, up.
+    func holdButton(_ button: CompanionButton, duration: TimeInterval = 1.0, completion: ((Swift.Error?) -> Void)? = nil) {
+        sendButtonDown(button)
+        DispatchQueue.global().asyncAfter(deadline: .now() + duration) { [weak self] in
+            self?.sendButtonUp(button, completion: completion)
+        }
+    }
+
+    private func sendButtonDown(_ button: CompanionButton) {
         sendRequest(eventName: "_hidC", content: .dictionary([
-            ("_hBtS", .int(1)), // button state: down
+            ("_hBtS", .int(1)),
             ("_hidC", .int(button.rawValue)),
         ]))
-        // Button up after hold duration
-        DispatchQueue.global().asyncAfter(deadline: .now() + holdDuration) { [weak self] in
-            self?.sendRequest(eventName: "_hidC", content: .dictionary([
-                ("_hBtS", .int(2)), // button state: up
-                ("_hidC", .int(button.rawValue)),
-            ]), completion: completion)
-        }
+    }
+
+    private func sendButtonUp(_ button: CompanionButton, completion: ((Swift.Error?) -> Void)? = nil) {
+        sendRequest(eventName: "_hidC", content: .dictionary([
+            ("_hBtS", .int(2)),
+            ("_hidC", .int(button.rawValue)),
+        ]), completion: completion)
     }
 
     /// Start a companion session. Must be called after pair-verify before other commands.
