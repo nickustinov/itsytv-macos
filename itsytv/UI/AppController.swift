@@ -16,6 +16,7 @@ final class AppController: NSObject, NSMenuDelegate {
     private var panel: NSPanel?
     private var panelDeviceID: String?
     private var keyboardMonitor: Any?
+    private var alwaysOnTopObserver: NSObjectProtocol?
 
     init(manager: AppleTVManager, iconLoader: AppIconLoader) {
         self.manager = manager
@@ -346,8 +347,9 @@ final class AppController: NSObject, NSMenuDelegate {
             defer: false
         )
         panel.contentView = vibrancy
-        panel.isFloatingPanel = true
-        panel.level = .statusBar
+        let alwaysOnTop = UserDefaults.standard.object(forKey: "alwaysOnTop") as? Bool ?? true
+        panel.isFloatingPanel = alwaysOnTop
+        panel.level = alwaysOnTop ? .statusBar : .normal
         panel.isMovableByWindowBackground = true
         panel.isOpaque = false
         panel.backgroundColor = .clear
@@ -375,10 +377,26 @@ final class AppController: NSObject, NSMenuDelegate {
         self.panel = panel
         self.panelDeviceID = manager.connectedDeviceID
         installKeyboardMonitor()
+
+        // Observe "Always on top" toggle changes while panel is open
+        alwaysOnTopObserver = NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self, let panel = self.panel else { return }
+            let onTop = UserDefaults.standard.object(forKey: "alwaysOnTop") as? Bool ?? true
+            panel.isFloatingPanel = onTop
+            panel.level = onTop ? .statusBar : .normal
+        }
     }
 
     private func dismissPanel() {
         removeKeyboardMonitor()
+        if let observer = alwaysOnTopObserver {
+            NotificationCenter.default.removeObserver(observer)
+            alwaysOnTopObserver = nil
+        }
         savePanelPosition()
         panel?.close()
         panel = nil
@@ -498,9 +516,12 @@ private final class ArrowCursorHostingView<Content: View>: NSHostingView<Content
 
 struct PanelMenuButton: View {
     let onUnpair: () -> Void
+    @AppStorage("alwaysOnTop") private var alwaysOnTop = true
 
     var body: some View {
         Menu {
+            Toggle("Always on top", isOn: $alwaysOnTop)
+            Divider()
             Button("Unpair", role: .destructive, action: onUnpair)
         } label: {
             ZStack {

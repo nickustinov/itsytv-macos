@@ -15,6 +15,7 @@ final class CompanionConnection {
     private var keepAliveTimer: DispatchSourceTimer?
 
     var onFrame: ((CompanionFrame) -> Void)?
+    var onConnect: (() -> Void)?
     var onDisconnect: ((Swift.Error?) -> Void)?
 
     init() {
@@ -27,6 +28,8 @@ final class CompanionConnection {
         connection.stateUpdateHandler = { [weak self] state in
             switch state {
             case .ready:
+                log.info("Connection ready")
+                self?.onConnect?()
                 self?.startReceiving()
             case .failed(let error):
                 self?.onDisconnect?(error)

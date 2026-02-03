@@ -93,31 +93,29 @@ final class AppleTVManager {
 
         // Check for stored credentials
         if let credentials = KeychainStorage.load(for: device.id) {
-            // Already paired — do pair-verify
+            // Already paired — do pair-verify when connection is ready
             self.currentCredentials = credentials
             connectedDeviceName = device.name
-            conn.connectToService(name: device.name)
 
-            // Wait for connection to be ready, then start verify
-            DispatchQueue.global().asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            conn.onConnect = { [weak self] in
                 self?.startPairVerify(credentials: credentials)
             }
+            conn.connectToService(name: device.name)
         } else {
             // Need to pair first
             connectedDeviceName = device.name
             DispatchQueue.main.async {
                 self.connectionStatus = .pairing
             }
-            conn.connectToService(name: device.name)
 
-            // Start pair-setup after connection is ready
-            DispatchQueue.global().asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            conn.onConnect = { [weak self] in
                 guard let self, let conn = self.connection else { return }
                 let setup = PairSetup(connection: conn)
                 self.pairSetup = setup
                 let m1Frame = setup.startPairing()
                 conn.send(frame: m1Frame)
             }
+            conn.connectToService(name: device.name)
         }
     }
 
@@ -439,11 +437,10 @@ final class AppleTVManager {
             self?.handleFrame(frame)
         }
 
-        conn.connectToService(name: device.name)
-
-        DispatchQueue.global().asyncAfter(deadline: .now() + 0.5) { [weak self] in
+        conn.onConnect = { [weak self] in
             self?.startPairVerify(credentials: credentials)
         }
+        conn.connectToService(name: device.name)
     }
 
     private func startMRPViaTunnel() {

@@ -27,6 +27,14 @@ Itsytv pairs naturally with [Itsyhome](https://itsyhome.app) — a free macOS me
 
 [![Download on the Mac App Store](https://developer.apple.com/app-store/marketing/guidelines/images/badge-download-on-the-mac-app-store.svg)](https://apps.apple.com/app/itsyhome/id6758070650)
 
+## Install
+
+```bash
+brew install --cask nickustinov/tap/itsytv
+```
+
+Or download the latest DMG from [GitHub releases](https://github.com/nickustinov/itsytv-macos/releases).
+
 ## Requirements
 
 - macOS 14.0 or later
