@@ -265,17 +265,17 @@ final class AppController: NSObject, NSMenuDelegate {
 
         let containerView = HighlightingMenuItemView(frame: NSRect(x: 0, y: 0, width: width, height: height))
 
-        let checkSize: CGFloat = 14
+        let iconSize = DS.ControlSize.iconMedium
         let checkX = DS.Spacing.md
-        let checkY = (height - checkSize) / 2
+        let checkY = (height - iconSize) / 2
         let checkmark = NSTextField(labelWithString: isOn ? "✓" : "")
-        checkmark.frame = NSRect(x: checkX, y: checkY, width: checkSize, height: checkSize)
+        checkmark.frame = NSRect(x: checkX, y: checkY, width: iconSize, height: iconSize)
         checkmark.font = NSFont.systemFont(ofSize: 12, weight: .semibold)
         checkmark.textColor = DS.Colors.foreground
         checkmark.alignment = .center
         containerView.addSubview(checkmark)
 
-        let labelX = checkX + checkSize + DS.Spacing.xs
+        let labelX = DS.Spacing.md + iconSize + DS.Spacing.sm
         let labelY = (height - 17) / 2
         let labelWidth = width - labelX - DS.Spacing.md
         let nameLabel = NSTextField(labelWithString: title)
