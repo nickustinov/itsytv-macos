@@ -1,5 +1,7 @@
 # Itsytv
 
+[![Tests](https://github.com/nickustinov/itsytv-macos/actions/workflows/tests.yml/badge.svg)](https://github.com/nickustinov/itsytv-macos/actions/workflows/tests.yml)
+
 A native macOS menu bar app for controlling your Apple TV.
 
 ![itsytv hero](https://itsytv.app/itsytv-hero.png)
