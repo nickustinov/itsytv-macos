@@ -1,6 +1,8 @@
 # Itsytv
 
-A native macOS menu bar app for controlling your Apple TV. 
+A native macOS menu bar app for controlling your Apple TV.
+
+![itsytv hero](https://itsytv.app/itsytv-hero.png)
 
 ## Features
 
