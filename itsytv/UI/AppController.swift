@@ -78,6 +78,18 @@ final class AppController: NSObject, NSMenuDelegate {
         }
     }
 
+    private var shouldShowItsyhomePromo: Bool {
+        let hasDevices = !KeychainStorage.allPairedDeviceIDs().isEmpty
+        let isInstalled: Bool = {
+            guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.nickustinov.itsyhome") else {
+                return false
+            }
+            let path = url.path
+            return path.hasPrefix("/Applications/") || path.hasPrefix(NSHomeDirectory() + "/Applications/")
+        }()
+        return hasDevices && !isInstalled
+    }
+
     // MARK: - Menu building
 
     private func rebuildMenu() {
@@ -112,6 +124,10 @@ final class AppController: NSObject, NSMenuDelegate {
             break
         default:
             menu.addItem(NSMenuItem.separator())
+            if shouldShowItsyhomePromo {
+                menu.addItem(createItsyhomePromoItem())
+                menu.addItem(NSMenuItem.separator())
+            }
             let loginItem = createCheckboxItem(
                 title: "Launch at login",
                 isOn: SMAppService.mainApp.status == .enabled
@@ -258,6 +274,22 @@ final class AppController: NSObject, NSMenuDelegate {
         containerView.onAction = action
 
         let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+        item.view = containerView
+        return item
+    }
+
+    private func createItsyhomePromoItem() -> NSMenuItem {
+        let width = DS.ControlSize.menuItemWidth
+        let height: CGFloat = 64
+
+        let containerView = ItsyhomePromoView(frame: NSRect(x: 0, y: 0, width: width, height: height))
+        containerView.onAction = {
+            if let url = URL(string: "macappstore://apps.apple.com/app/itsyhome/id6758070650") {
+                NSWorkspace.shared.open(url)
+            }
+        }
+
+        let item = NSMenuItem(title: "Itsyhome", action: nil, keyEquivalent: "")
         item.view = containerView
         return item
     }
@@ -687,6 +719,84 @@ private final class DigitBoxView: NSView {
         let strokePath = NSBezierPath(roundedRect: bounds.insetBy(dx: 1, dy: 1), xRadius: DS.Radius.md, yRadius: DS.Radius.md)
         strokePath.lineWidth = 2
         strokePath.stroke()
+    }
+}
+
+// MARK: - Itsyhome promo banner
+
+private final class ItsyhomePromoView: HighlightingMenuItemView {
+
+    private var isHovered = false
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        onMouseEnter = { [weak self] in self?.isHovered = true }
+        onMouseExit = { [weak self] in self?.isHovered = false }
+        setupContent()
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    private func setupContent() {
+        let width = bounds.width
+        let height = bounds.height
+        let insetX: CGFloat = 4
+        let insetRect = NSRect(x: insetX, y: 0, width: width - insetX * 2, height: height)
+
+        // Icon
+        let iconSize: CGFloat = 32
+        let iconX = insetRect.minX + DS.Spacing.md
+        let iconY = (height - iconSize) / 2
+        let iconView = NSImageView(frame: NSRect(x: iconX, y: iconY, width: iconSize, height: iconSize))
+        iconView.image = Bundle.main.image(forResource: "itsyhome-icon")
+        iconView.imageScaling = .scaleProportionallyUpOrDown
+        iconView.wantsLayer = true
+        iconView.layer?.cornerRadius = 6
+        iconView.layer?.masksToBounds = true
+        addSubview(iconView)
+
+        // Title
+        let textX = iconX + iconSize + DS.Spacing.sm
+        let chevronSize: CGFloat = 10
+        let textMaxWidth = insetRect.maxX - textX - DS.Spacing.md - chevronSize - DS.Spacing.xs
+        let titleLabel = NSTextField(labelWithString: "HomeKit in menu bar")
+        titleLabel.frame = NSRect(x: textX, y: height / 2 + 1, width: textMaxWidth, height: 17)
+        titleLabel.font = NSFont.systemFont(ofSize: 12, weight: .bold)
+        titleLabel.textColor = .white
+        titleLabel.lineBreakMode = .byTruncatingTail
+        addSubview(titleLabel)
+
+        // Subtitle
+        let subtitleLabel = NSTextField(labelWithString: "Try Itsyhome – it's free")
+        subtitleLabel.frame = NSRect(x: textX, y: height / 2 - 16, width: textMaxWidth, height: 15)
+        subtitleLabel.font = NSFont.systemFont(ofSize: 12, weight: .regular)
+        subtitleLabel.textColor = NSColor.white.withAlphaComponent(0.75)
+        subtitleLabel.lineBreakMode = .byTruncatingTail
+        addSubview(subtitleLabel)
+
+        // Chevron
+        let chevronX = insetRect.maxX - DS.Spacing.md - chevronSize
+        let chevronY = (height - chevronSize) / 2
+        let chevronView = NSImageView(frame: NSRect(x: chevronX, y: chevronY, width: chevronSize, height: chevronSize))
+        chevronView.image = NSImage(systemSymbolName: "chevron.right", accessibilityDescription: nil)
+        chevronView.contentTintColor = NSColor.white.withAlphaComponent(0.75)
+        chevronView.imageScaling = .scaleProportionallyUpOrDown
+        addSubview(chevronView)
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        let insetRect = bounds.insetBy(dx: 4, dy: 0)
+
+        if isHovered {
+            NSColor.selectedContentBackgroundColor.setFill()
+            NSBezierPath(roundedRect: insetRect, xRadius: 4, yRadius: 4).fill()
+        } else {
+            let gradient = NSGradient(
+                starting: DS.Colors.promoGradientStart,
+                ending: DS.Colors.promoGradientEnd
+            )
+            gradient?.draw(in: NSBezierPath(roundedRect: insetRect, xRadius: 6, yRadius: 6), angle: 0)
+        }
     }
 }
 
