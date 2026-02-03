@@ -3,6 +3,7 @@ import SwiftUI
 import Combine
 import ServiceManagement
 import os.log
+import ObjectiveC
 
 private let log = Logger(subsystem: "com.itsytv.app", category: "Panel")
 
@@ -350,6 +351,12 @@ final class AppController: NSObject, NSMenuDelegate {
         let alwaysOnTop = UserDefaults.standard.object(forKey: "alwaysOnTop") as? Bool ?? true
         panel.isFloatingPanel = alwaysOnTop
         panel.level = alwaysOnTop ? .statusBar : .normal
+        panel.hidesOnDeactivate = false
+        panel.collectionBehavior = [.fullScreenAuxiliary]
+        if !alwaysOnTop {
+            panel.styleMask.remove(.nonactivatingPanel)
+            panel.syncActivationBehavior()
+        }
         panel.isMovableByWindowBackground = true
         panel.isOpaque = false
         panel.backgroundColor = .clear
@@ -388,6 +395,16 @@ final class AppController: NSObject, NSMenuDelegate {
             let onTop = UserDefaults.standard.object(forKey: "alwaysOnTop") as? Bool ?? true
             panel.isFloatingPanel = onTop
             panel.level = onTop ? .statusBar : .normal
+            if onTop {
+                panel.styleMask.insert(.nonactivatingPanel)
+            } else {
+                panel.styleMask.remove(.nonactivatingPanel)
+            }
+            panel.syncActivationBehavior()
+            if !onTop {
+                NSApp.activate(ignoringOtherApps: true)
+                panel.makeKeyAndOrderFront(nil)
+            }
         }
     }
 
@@ -499,6 +516,20 @@ final class AppController: NSObject, NSMenuDelegate {
 
 private final class KeyablePanel: NSPanel {
     override var canBecomeKey: Bool { true }
+}
+
+extension NSPanel {
+    /// Sync the WindowServer activation tag after changing `.nonactivatingPanel`.
+    /// AppKit bug: toggling the style mask flag alone does not update the
+    /// underlying `kCGSPreventsActivationTagBit` tag (FB16484811).
+    func syncActivationBehavior() {
+        let prevents = styleMask.contains(.nonactivatingPanel)
+        let sel = Selector(("_setPreventsActivation:"))
+        guard let method = class_getMethodImplementation(type(of: self), sel) else { return }
+        typealias Fn = @convention(c) (AnyObject, Selector, ObjCBool) -> Void
+        let fn = unsafeBitCast(method, to: Fn.self)
+        fn(self, sel, ObjCBool(prevents))
+    }
 }
 
 // MARK: - Arrow cursor hosting view

@@ -4,7 +4,6 @@ set -e
 # Configuration
 APP_NAME="itsytv"
 BUNDLE_ID="com.itsytv.app"
-TEAM_ID="R892A93W42"
 VERSION=$(defaults read "$(pwd)/itsytv/Info.plist" CFBundleShortVersionString)
 
 # Paths
@@ -81,7 +80,7 @@ if security find-identity -v -p codesigning | grep -q "Developer ID Application"
     echo "    DMG: $DMG_PATH"
     echo ""
     echo "To notarize, run:"
-    echo "    xcrun notarytool submit \"$DMG_PATH\" --apple-id YOUR_APPLE_ID --team-id $TEAM_ID --password APP_SPECIFIC_PASSWORD --wait"
+    echo "    xcrun notarytool submit \"$DMG_PATH\" --apple-id <APPLE_ID> --team-id <TEAM_ID> --password <APP_SPECIFIC_PASSWORD> --wait"
     echo "    xcrun stapler staple \"$DMG_PATH\""
     echo ""
     echo "To create a GitHub release:"
