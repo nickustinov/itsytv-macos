@@ -51,6 +51,7 @@ final class AppController: NSObject, NSMenuDelegate {
 
     private var lastKnownStatus: ConnectionStatus = .disconnected
     private var lastKnownDeviceCount: Int = 0
+    private var hasPairedDevice = false
 
     private func handleStateChange() {
         let currentStatus = manager.connectionStatus
@@ -79,7 +80,7 @@ final class AppController: NSObject, NSMenuDelegate {
     }
 
     private var shouldShowItsyhomePromo: Bool {
-        let hasDevices = !KeychainStorage.allPairedDeviceIDs().isEmpty
+        let hasDevices = hasPairedDevice
         let isInstalled: Bool = {
             guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.nickustinov.itsyhome") else {
                 return false
@@ -151,6 +152,7 @@ final class AppController: NSObject, NSMenuDelegate {
     }
 
     private func buildDeviceList() {
+        hasPairedDevice = false
         if manager.discoveredDevices.isEmpty {
             let scanning = NSMenuItem(title: "Scanning for devices...", action: nil, keyEquivalent: "")
             scanning.isEnabled = false
@@ -159,6 +161,7 @@ final class AppController: NSObject, NSMenuDelegate {
             let sorted = manager.discoveredDevices.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
             for device in sorted {
                 let isPaired = KeychainStorage.load(for: device.id) != nil
+                if isPaired { hasPairedDevice = true }
                 let item = createDeviceItem(device: device, isPaired: isPaired)
                 menu.addItem(item)
             }
