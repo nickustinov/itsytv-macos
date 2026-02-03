@@ -4,15 +4,16 @@ A native macOS menu bar app for controlling your Apple TV.
 
 ## Features
 
-- **Menu bar remote** — Control your Apple TV from the macOS menu bar with a compact remote interface
-- **Now playing** — Live now-playing bar with title, artist, album, artwork, progress bar, and playback controls (play/pause, next, previous)
-- **App launcher** — Browse installed apps in a grid with icons fetched from the App Store, launch with a click
-- **Credential storage** — Pairing credentials stored securely in macOS Keychain
-- **D-pad navigation** — Up, down, left, right, select with a circular remote layout
-- **Keyboard navigation** — Arrow keys for d-pad, Return for select, Backspace for menu/back, Escape for home, Space for play/pause
-- **Playback controls** — Play/pause, volume up/down
-- **System buttons** — Home, menu, back, sleep/wake
+- **Menu bar remote** — Control your Apple TV from a compact floating panel
+- **D-pad and buttons** — Circular d-pad with directional navigation, select, home, menu/back, play/pause
+- **Keyboard navigation** — Arrow keys, Return, Backspace, Escape, Space mapped to remote buttons
+- **Text input** — Type directly into Apple TV text fields with a live keyboard
+- **Now playing** — Artwork, title, artist, progress bar, and playback controls
+- **App launcher** — Grid of installed apps with icons fetched from the App Store
 - **Multiple devices** — Pair and switch between multiple Apple TVs
+- **Per-device panel position** — Remembers where you placed the remote for each Apple TV
+- **Launch at login** — Optional auto-start from the menu bar
+- **Unpair** — Remove pairing credentials from the panel menu
 
 ## Requirements
 
@@ -54,49 +55,29 @@ Select the **itsytv** scheme and run.
 
 ```
 itsytv/
-├── itsytvApp.swift              # App entry point with MenuBarExtra
-├── AppState.swift               # Shared types (ConnectionStatus, AppleTVDevice)
-├── Info.plist                   # Bundle config, network permissions
-├── itsytv.entitlements          # Sandbox entitlements
+├── itsytvApp.swift                # App entry point
+├── AppState.swift                 # Shared types (ConnectionStatus, AppleTVDevice)
 ├── Discovery/
-│   └── DeviceDiscovery.swift    # NetServiceBrowser for Bonjour discovery + TXT record filtering
+│   └── DeviceDiscovery.swift      # Bonjour discovery of Apple TVs on the local network
 ├── Protocol/
-│   ├── OPACK.swift              # Apple's OPACK binary serialization (encode/decode)
-│   ├── TLV8.swift               # TLV8 encoding with 255-byte fragmentation
-│   ├── CompanionFrame.swift     # Frame type enum + 4-byte header parse/serialize
-│   ├── CompanionConnection.swift # TCP connection, frame buffering, encryption, keep-alive
-│   ├── CompanionCommands.swift  # HID buttons, session start, app fetching/launching
-│   └── AppleTVManager.swift     # Orchestrator: discovery → pairing → session → commands
+│   ├── AppleTVManager.swift       # Orchestrator: discovery → pairing → session → commands
+│   ├── CompanionConnection.swift  # TCP connection and frame handling
+│   ├── CompanionCommands.swift    # HID buttons, session start, app launching
+│   └── TextInputSession.swift     # Live text input to Apple TV text fields
 ├── Crypto/
-│   ├── PairSetup.swift          # SRP pair-setup (M1-M6) with Ed25519 identity exchange
-│   ├── PairVerify.swift         # Curve25519 pair-verify (M1-M4) for session establishment
-│   ├── CompanionCrypto.swift    # ChaCha20-Poly1305 transport encryption
-│   └── KeychainStorage.swift    # Secure credential persistence
+│   └── KeychainStorage.swift      # Secure credential persistence in macOS Keychain
 ├── AirPlay/
-│   ├── AirPlayMRPTunnel.swift   # Orchestrates full AirPlay tunnel setup for MRP
-│   ├── AirPlayControlChannel.swift # HTTP/RTSP client over encrypted AirPlay connection
-│   ├── AirPlayPairVerify.swift  # POST /pair-verify with TLV8/Curve25519
-│   ├── HAPSession.swift         # 1024-byte block ChaCha20-Poly1305 framing
-│   ├── HAPChannel.swift         # Encrypted TCP channel base for event/data streams
-│   └── DataStreamChannel.swift  # Data stream framing + MRP protobuf wrapping
+│   └── AirPlayMRPTunnel.swift     # AirPlay tunnel for media remote protocol
 ├── MRP/
-│   ├── MRPManager.swift         # MRP session lifecycle, now-playing state, media commands
-│   ├── NowPlayingState.swift    # Now-playing model (title, artist, album, artwork, progress)
-│   └── Proto/                   # Protobuf definitions and generated Swift code
-│       ├── ProtocolMessage.proto
-│       ├── SetStateMessage.proto
-│       ├── ContentItem.proto
-│       ├── ContentItemMetadata.proto
-│       ├── PlaybackQueue.proto
-│       ├── ...                  # 15 proto files + Generated/ directory
-│       └── Generated/           # Swift protobuf generated code
+│   ├── MRPManager.swift           # Now-playing state and media commands
+│   └── Proto/                     # Protobuf definitions and generated Swift code
+├── DesignSystem/
+│   ├── DesignSystem.swift         # Colours, typography, spacing, sizing tokens
+│   └── HighlightingMenuItemView.swift # Custom NSView for interactive menu items
 └── UI/
-    ├── MenuBarView.swift        # SwiftUI views: device list, pairing, remote, now playing, app grid
-    └── AppIconLoader.swift      # Fetches app icons from iTunes Lookup API
-
-Tests/
-├── OPACKTests.swift             # 22 tests for OPACK encode/decode
-└── TLV8Tests.swift              # 7 tests for TLV8 encode/decode
+    ├── AppController.swift        # NSStatusItem, menu, floating panel, keyboard monitor
+    ├── MenuBarView.swift          # SwiftUI views: remote, now playing, app grid
+    └── AppIconLoader.swift        # App icons from iTunes Lookup API
 ```
 
 ## Building
