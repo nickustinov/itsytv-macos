@@ -91,11 +91,14 @@ struct NowPlayingBar: View {
         VStack(spacing: 6) {
             // Artwork — full width, square
             if let data = np?.artworkData, let image = NSImage(data: data) {
-                Image(nsImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
+                Color.clear
                     .frame(maxWidth: .infinity)
                     .frame(height: 160)
+                    .overlay {
+                        Image(nsImage: image)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    }
                     .clipped()
                     .cornerRadius(6)
             } else {
@@ -382,11 +385,14 @@ struct AppButton: View {
         Button(action: action) {
             VStack(spacing: 4) {
                 if let icon {
-                    Image(nsImage: icon)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
+                    Color.clear
                         .frame(maxWidth: .infinity)
                         .frame(height: iconHeight)
+                        .overlay {
+                            Image(nsImage: icon)
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                        }
                         .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
                 } else {
                     RoundedRectangle(cornerRadius: cornerRadius)
