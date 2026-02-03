@@ -38,11 +38,9 @@ final class PairSetup {
     private let connection: CompanionConnection
     private let configuration = SRPConfiguration<SHA512>(.N3072)
     private lazy var client = SRPClient(configuration: configuration)
-    private var clientKeys: SRPKeyPair!
-    private var serverPublicKey: SRPKey!
-    private var sharedSecret: SRPKey!
-    private var clientProofBytes: [UInt8]!
-    private var sessionKey: [UInt8]! // K = H(S), using minimal bytes of S
+    private var clientKeys: SRPKeyPair?
+    private var clientProofBytes: [UInt8]?
+    private var sessionKey: [UInt8]?
 
     // Ed25519 long-term identity
     private let signingKey = Curve25519.Signing.PrivateKey()
@@ -71,6 +69,8 @@ final class PairSetup {
     // MARK: - M3: process server's salt+pubkey (M2), send SRP proof
 
     func processChallengeAndProve(m2Frame: CompanionFrame, pin: String) throws -> CompanionFrame {
+        guard let clientKeys else { throw Error.invalidServerResponse }
+
         let response = try OPACK.unpack(m2Frame.payload)
         guard let pdData = response["_pd"]?.dataValue else {
             throw Error.invalidServerResponse
@@ -92,7 +92,6 @@ final class PairSetup {
         log.info("M2 received — salt: \(salt.count) bytes, serverPubKey: \(serverPubKeyData.count) bytes")
 
         let serverPubKey = SRPKey(Array(serverPubKeyData))
-        self.serverPublicKey = serverPubKey
 
         // Use swift-srp for the core DH math (computing S)
         let sharedSecret = try client.calculateSharedSecret(
@@ -102,7 +101,6 @@ final class PairSetup {
             clientKeys: clientKeys,
             serverPublicKey: serverPubKey
         )
-        self.sharedSecret = sharedSecret
 
         // Compute K and M1 manually to match pyatv's srptools encoding.
         // srptools uses minimal-length big-endian bytes (no zero-padding) for:
@@ -152,6 +150,10 @@ final class PairSetup {
     // MARK: - M5: verify server proof (M4), send encrypted identity
 
     func verifyAndExchangeIdentity(m4Frame: CompanionFrame) throws -> (frame: CompanionFrame, credentials: HAPCredentials) {
+        guard let clientKeys, let clientProofBytes, let sessionKey else {
+            throw Error.invalidServerResponse
+        }
+
         let response = try OPACK.unpack(m4Frame.payload)
         guard let pdData = response["_pd"]?.dataValue else {
             throw Error.invalidServerResponse
@@ -214,7 +216,7 @@ final class PairSetup {
         ])
 
         // Encrypt with ChaCha20-Poly1305
-        let nonce = padNonce("PS-Msg05")
+        let nonce = CryptoHelpers.padNonce("PS-Msg05")
         let symmetricKey = SymmetricKey(data: encryptionKey)
         let sealed = try ChaChaPoly.seal(innerTLV, using: symmetricKey, nonce: nonce)
         let encryptedData = Data(sealed.ciphertext) + Data(sealed.tag)
@@ -242,6 +244,8 @@ final class PairSetup {
     // MARK: - M6: process server's encrypted identity
 
     func processServerIdentity(m6Frame: CompanionFrame, partialCredentials: HAPCredentials) throws -> HAPCredentials {
+        guard let sessionKey else { throw Error.invalidServerResponse }
+
         let response = try OPACK.unpack(m6Frame.payload)
         guard let pdData = response["_pd"]?.dataValue else {
             throw Error.invalidServerResponse
@@ -262,7 +266,7 @@ final class PairSetup {
             salt: "Pair-Setup-Encrypt-Salt",
             info: "Pair-Setup-Encrypt-Info"
         )
-        let nonce = padNonce("PS-Msg06")
+        let nonce = CryptoHelpers.padNonce("PS-Msg06")
         let symmetricKey = SymmetricKey(data: encryptionKey)
 
         let edBytes = Data(encryptedData)
@@ -338,16 +342,6 @@ final class PairSetup {
             outputByteCount: 32
         )
         return derived.withUnsafeBytes { Data($0) }
-    }
-
-    private func padNonce(_ string: String) -> ChaChaPoly.Nonce {
-        var bytes = [UInt8](repeating: 0, count: 12)
-        let utf8 = Array(string.utf8)
-        let offset = 12 - utf8.count
-        for i in 0..<utf8.count {
-            bytes[offset + i] = utf8[i]
-        }
-        return try! ChaChaPoly.Nonce(data: bytes)
     }
 }
 

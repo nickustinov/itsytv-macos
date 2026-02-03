@@ -236,8 +236,14 @@ final class AppleTVManager {
         guard let pairSetup else { return }
 
         // Determine which step based on TLV seqNo
-        guard let opack = try? OPACK.unpack(frame.payload),
-              let pd = opack["_pd"]?.dataValue else { return }
+        let opack: OPACK.Value
+        do {
+            opack = try OPACK.unpack(frame.payload)
+        } catch {
+            log.error("Failed to unpack pair-setup response: \(error.localizedDescription)")
+            return
+        }
+        guard let pd = opack["_pd"]?.dataValue else { return }
         let tlv = TLV8.decode(pd)
         guard let seqData = TLV8.find(.seqNo, in: tlv), let seq = seqData.first else { return }
 
@@ -267,7 +273,11 @@ final class AppleTVManager {
                 log.info("Pair-setup complete — serverID: \(credentials.serverID)")
 
                 if let deviceName = connectedDeviceName {
-                    try? KeychainStorage.save(credentials: credentials, for: deviceName)
+                    do {
+                        try KeychainStorage.save(credentials: credentials, for: deviceName)
+                    } catch {
+                        log.error("Failed to save credentials: \(error.localizedDescription)")
+                    }
                 }
 
                 self.currentCredentials = credentials
@@ -295,8 +305,14 @@ final class AppleTVManager {
     private func handlePairVerifyResponse(_ frame: CompanionFrame) {
         guard let verify = pendingPairVerify else { return }
 
-        guard let opack = try? OPACK.unpack(frame.payload),
-              let pd = opack["_pd"]?.dataValue else { return }
+        let opack: OPACK.Value
+        do {
+            opack = try OPACK.unpack(frame.payload)
+        } catch {
+            log.error("Failed to unpack pair-verify response: \(error.localizedDescription)")
+            return
+        }
+        guard let pd = opack["_pd"]?.dataValue else { return }
         let tlv = TLV8.decode(pd)
         guard let seqData = TLV8.find(.seqNo, in: tlv), let seq = seqData.first else { return }
 
@@ -438,8 +454,11 @@ final class AppleTVManager {
     }
 
     private func handleOPACKMessage(_ frame: CompanionFrame) {
-        guard let message = try? OPACK.unpack(frame.payload) else {
-            log.warning("Failed to unpack OPACK payload (\(frame.payload.count) bytes)")
+        let message: OPACK.Value
+        do {
+            message = try OPACK.unpack(frame.payload)
+        } catch {
+            log.warning("Failed to unpack OPACK payload (\(frame.payload.count) bytes): \(error.localizedDescription)")
             return
         }
         let type = message["_t"]?.intValue

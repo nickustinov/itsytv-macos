@@ -68,11 +68,11 @@ final class AirPlayPairVerify {
         self.sharedSecret = shared
 
         // Derive session key for verify encryption
-        let sessionKeyData = hkdfFromShared(shared, salt: "Pair-Verify-Encrypt-Salt", info: "Pair-Verify-Encrypt-Info")
+        let sessionKeyData = CryptoHelpers.hkdfFromShared(shared, salt: "Pair-Verify-Encrypt-Salt", info: "Pair-Verify-Encrypt-Info")
         let symmetricKey = SymmetricKey(data: sessionKeyData)
 
         // Decrypt server's proof
-        let nonce = padNonce("PV-Msg02")
+        let nonce = CryptoHelpers.padNonce("PV-Msg02")
         let edBytes = Data(encryptedData)
         let tagStart = edBytes.count - 16
         let sealedBox = try ChaChaPoly.SealedBox(
@@ -123,7 +123,7 @@ final class AirPlayPairVerify {
             (.signature, Data(deviceSignature)),
         ])
 
-        let nonceOut = padNonce("PV-Msg03")
+        let nonceOut = CryptoHelpers.padNonce("PV-Msg03")
         let sealed = try ChaChaPoly.seal(innerTLVOut, using: symmetricKey, nonce: nonceOut)
         let encryptedOut = Data(sealed.ciphertext) + Data(sealed.tag)
 
@@ -137,30 +137,9 @@ final class AirPlayPairVerify {
 
     func deriveKeys(salt: String, outputInfo: String, inputInfo: String) -> (output: Data, input: Data)? {
         guard let shared = sharedSecret else { return nil }
-        let outputKey = hkdfFromShared(shared, salt: salt, info: outputInfo)
-        let inputKey = hkdfFromShared(shared, salt: salt, info: inputInfo)
+        let outputKey = CryptoHelpers.hkdfFromShared(shared, salt: salt, info: outputInfo)
+        let inputKey = CryptoHelpers.hkdfFromShared(shared, salt: salt, info: inputInfo)
         return (outputKey, inputKey)
     }
 
-    // MARK: - Helpers
-
-    private func hkdfFromShared(_ shared: SharedSecret, salt: String, info: String) -> Data {
-        let derived = shared.hkdfDerivedSymmetricKey(
-            using: SHA512.self,
-            salt: Data(salt.utf8),
-            sharedInfo: Data(info.utf8),
-            outputByteCount: 32
-        )
-        return derived.withUnsafeBytes { Data($0) }
-    }
-
-    private func padNonce(_ string: String) -> ChaChaPoly.Nonce {
-        var bytes = [UInt8](repeating: 0, count: 12)
-        let utf8 = Array(string.utf8)
-        let offset = 12 - utf8.count
-        for i in 0..<utf8.count {
-            bytes[offset + i] = utf8[i]
-        }
-        return try! ChaChaPoly.Nonce(data: bytes)
-    }
 }

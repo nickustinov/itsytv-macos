@@ -157,18 +157,4 @@ extension CompanionConnection {
         ]), completion: completion)
     }
 
-    /// Fetch attention state (awake/asleep).
-    func fetchAttentionState(completion: ((Swift.Error?) -> Void)? = nil) {
-        sendRequest(eventName: "FetchAttentionState", completion: completion)
-    }
-
-    /// Put Apple TV to sleep.
-    func sleep(completion: ((Swift.Error?) -> Void)? = nil) {
-        pressButton(.sleep, completion: completion)
-    }
-
-    /// Wake Apple TV.
-    func wake(completion: ((Swift.Error?) -> Void)? = nil) {
-        pressButton(.wake, completion: completion)
-    }
 }

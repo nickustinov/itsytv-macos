@@ -1,5 +1,8 @@
 import Foundation
 import Security
+import os.log
+
+private let log = Logger(subsystem: "com.itsytv.app", category: "Keychain")
 
 /// Stores and retrieves HAP credentials in the macOS Keychain.
 enum KeychainStorage {
@@ -46,7 +49,12 @@ enum KeychainStorage {
             return nil
         }
 
-        return try? JSONDecoder().decode(HAPCredentials.self, from: data)
+        do {
+            return try JSONDecoder().decode(HAPCredentials.self, from: data)
+        } catch {
+            log.error("Failed to decode credentials for \(deviceID): \(error.localizedDescription)")
+            return nil
+        }
     }
 
     static func delete(for deviceID: String) {
