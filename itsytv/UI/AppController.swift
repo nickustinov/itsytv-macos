@@ -265,9 +265,7 @@ final class AppController: NSObject, NSMenuDelegate {
     // MARK: - Panel
 
     private func showPanel() {
-        if let existing = panel {
-            existing.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
+        if panel != nil {
             return
         }
 
@@ -311,8 +309,7 @@ final class AppController: NSObject, NSMenuDelegate {
         panel.delegate = self
         panel.hasShadow = true
 
-        panel.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        panel.orderFrontRegardless()
 
         // Position after makeKeyAndOrderFront — AppKit constrains the
         // frame during ordering for .statusBar level panels, so we must

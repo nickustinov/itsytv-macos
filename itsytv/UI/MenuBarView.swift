@@ -268,28 +268,22 @@ struct RemoteTabContent: View {
             }
 
             if showingKeyboard {
-                HStack(spacing: 6) {
-                    TextField("Type here…", text: $keyboardText)
-                        .textFieldStyle(.roundedBorder)
-                        .onChange(of: keyboardText) { _, newValue in
-                            manager.updateRemoteText(newValue)
-                        }
-                        .onSubmit {
-                            keyboardText = ""
-                            showingKeyboard = false
-                            manager.resetTextInputState()
-                        }
-
-                    Button {
+                TextField("Type here…", text: $keyboardText)
+                    .textFieldStyle(.plain)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .padding(.vertical, 5)
+                    .padding(.horizontal, 10)
+                    .background(Capsule().fill(Color(nsColor: DS.Colors.muted)))
+                    .padding(.horizontal, 8)
+                    .onChange(of: keyboardText) { _, newValue in
+                        manager.updateRemoteText(newValue)
+                    }
+                    .onSubmit {
                         keyboardText = ""
                         showingKeyboard = false
                         manager.resetTextInputState()
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.secondary)
                     }
-                    .buttonStyle(.plain)
-                }
             }
         }
         .padding(.horizontal, padding)
