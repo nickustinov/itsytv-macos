@@ -25,7 +25,7 @@ Itsytv pairs naturally with [Itsyhome](https://itsyhome.app) — a free macOS me
 
 ![Itsyhome](https://itsytv.app/itsyhome.png)
 
-[![Download on the Mac App Store](https://developer.apple.com/assets/elements/badges/download-on-the-mac-app-store.svg)](https://apps.apple.com/app/itsyhome/id6758070650)
+[![Download on the Mac App Store](https://developer.apple.com/app-store/marketing/guidelines/images/badge-download-on-the-mac-app-store.svg)](https://apps.apple.com/app/itsyhome/id6758070650)
 
 ## Requirements
 
