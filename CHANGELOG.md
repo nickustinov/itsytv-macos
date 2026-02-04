@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.5
+
+- Add seekable progress bar in now-playing widget (click or drag to jump to position)
+
 ## 1.0.4
 
 - Fix now-playing play/pause button not working with YouTube and other third-party apps

@@ -97,6 +97,21 @@ final class MRPManager {
         tunnel?.send(message)
     }
 
+    func seekToPosition(_ position: Double) {
+        var options = MRP_CommandOptions()
+        options.playbackPosition = position
+
+        var sendCmd = MRP_SendCommandMessage()
+        sendCmd.command = .seekToPlaybackPosition
+        sendCmd.options = options
+
+        var message = MRP_ProtocolMessage()
+        message.type = .sendCommandMessage
+        message.MRP_sendCommandMessage = sendCmd
+
+        tunnel?.send(message)
+    }
+
     // MARK: - Send and receive
 
     /// Send a message and wait for a response matched by identifier.

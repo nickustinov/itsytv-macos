@@ -160,7 +160,8 @@ struct NowPlayingBar: View {
             // Progress bar
             NowPlayingProgress(
                 nowPlaying: np,
-                duration: np?.duration ?? 0
+                duration: np?.duration ?? 0,
+                onSeek: { position in mrp.seekToPosition(position) }
             )
             .opacity(hasContent && (np?.duration ?? 0) > 0 ? 1 : 0.3)
         }
@@ -172,13 +173,20 @@ struct NowPlayingBar: View {
 struct NowPlayingProgress: View {
     let nowPlaying: NowPlayingState?
     let duration: TimeInterval
+    var onSeek: ((Double) -> Void)?
 
     @State private var currentTime: TimeInterval = 0
+    @State private var isSeeking = false
+    @State private var seekTime: TimeInterval = 0
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+
+    private var displayTime: TimeInterval {
+        isSeeking ? seekTime : currentTime
+    }
 
     private var progress: Double {
         guard duration > 0 else { return 0 }
-        return min(1, currentTime / duration)
+        return min(1, displayTime / duration)
     }
 
     var body: some View {
@@ -193,11 +201,30 @@ struct NowPlayingProgress: View {
                         .fill(.secondary)
                         .frame(width: max(0, geo.size.width * progress), height: 3)
                 }
+                .frame(height: 12)
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { value in
+                            guard duration > 0 else { return }
+                            isSeeking = true
+                            let fraction = max(0, min(1, value.location.x / geo.size.width))
+                            seekTime = fraction * duration
+                        }
+                        .onEnded { value in
+                            guard duration > 0 else { return }
+                            let fraction = max(0, min(1, value.location.x / geo.size.width))
+                            let position = fraction * duration
+                            onSeek?(position)
+                            currentTime = position
+                            isSeeking = false
+                        }
+                )
             }
-            .frame(height: 3)
+            .frame(height: 12)
 
             HStack {
-                Text(formatTime(currentTime))
+                Text(formatTime(displayTime))
                     .font(.system(size: 9, design: .monospaced))
                     .foregroundStyle(.tertiary)
                 Spacer()
@@ -207,7 +234,11 @@ struct NowPlayingProgress: View {
             }
         }
         .onAppear { currentTime = nowPlaying?.currentPosition ?? 0 }
-        .onReceive(timer) { _ in currentTime = nowPlaying?.currentPosition ?? 0 }
+        .onReceive(timer) { _ in
+            if !isSeeking {
+                currentTime = nowPlaying?.currentPosition ?? 0
+            }
+        }
     }
 
     private func formatTime(_ seconds: TimeInterval) -> String {
