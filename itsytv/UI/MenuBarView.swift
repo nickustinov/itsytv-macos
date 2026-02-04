@@ -125,7 +125,8 @@ struct NowPlayingBar: View {
             }
             .opacity(hasContent ? 1 : 0)
 
-            // Controls
+            // Controls — use HID button presses (not MRP commands) for play/pause
+            // because apps like YouTube ignore MRP SendCommandMessage.
             HStack(spacing: 28) {
                 Button {
                     mrp.sendCommand(.previousTrack)
@@ -137,7 +138,7 @@ struct NowPlayingBar: View {
                 .disabled(!hasContent || !mrp.supportedCommands.contains(.previousTrack))
 
                 Button {
-                    mrp.sendCommand(.togglePlayPause)
+                    manager.pressButton(.playPause)
                 } label: {
                     Image(systemName: np?.isPlaying == true ? "pause.fill" : "play.fill")
                         .font(.system(size: 22))

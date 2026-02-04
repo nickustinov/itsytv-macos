@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.4
+
+- Fix now-playing play/pause button not working with YouTube and other third-party apps
+- Fix infinite artwork request loop when app doesn't provide album art (e.g. YouTube)
+
 ## 1.0.3
 
 - Add "Check for updates..." menu item that checks GitHub releases for new versions

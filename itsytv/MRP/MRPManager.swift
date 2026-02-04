@@ -29,6 +29,7 @@ final class MRPManager {
     private var queueLocation: UInt32 = 0
     private var artworkRequestPending = false
     private var currentContentIdentifier: String?
+    private var artworkUnavailable = false
 
     // MARK: - Connection lifecycle
 
@@ -77,6 +78,7 @@ final class MRPManager {
         contentItems = []
         queueLocation = 0
         artworkRequestPending = false
+        artworkUnavailable = false
         currentContentIdentifier = nil
         nowPlaying = nil
         supportedCommands = []
@@ -349,6 +351,10 @@ final class MRPManager {
         let contentChanged = itemID != currentContentIdentifier
         currentContentIdentifier = itemID
 
+        if contentChanged {
+            artworkUnavailable = false
+        }
+
         let playbackRate = meta.hasPlaybackRate ? meta.playbackRate : (self.nowPlaying?.playbackRate ?? 0)
         let timestamp = Date()
 
@@ -356,13 +362,17 @@ final class MRPManager {
         let artworkData: Data?
         if item.hasArtworkData {
             artworkData = item.artworkData
+            artworkUnavailable = false
         } else if contentChanged {
             artworkData = nil
         } else {
             artworkData = self.nowPlaying?.artworkData
+            if artworkData == nil {
+                artworkUnavailable = true
+            }
         }
 
-        let needsArtwork = artworkData == nil
+        let needsArtwork = artworkData == nil && !artworkUnavailable
 
         DispatchQueue.main.async {
             self.nowPlaying = NowPlayingState(
