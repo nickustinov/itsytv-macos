@@ -563,6 +563,7 @@ struct VolumePill: View {
                     .font(.system(size: width * 0.3, weight: .medium))
                     .foregroundStyle(Color(nsColor: DS.Colors.primaryForeground))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
 
@@ -574,6 +575,7 @@ struct VolumePill: View {
                     .font(.system(size: width * 0.3, weight: .medium))
                     .foregroundStyle(Color(nsColor: DS.Colors.primaryForeground))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
         }

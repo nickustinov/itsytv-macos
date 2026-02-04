@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.6
+
+- Fix volume buttons only responding to clicks on the +/- icons instead of the entire button area
+
 ## 1.0.5
 
 - Add seekable progress bar in now-playing widget (click or drag to jump to position)
