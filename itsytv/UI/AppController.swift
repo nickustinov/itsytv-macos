@@ -146,6 +146,10 @@ final class AppController: NSObject, NSMenuDelegate {
                 }
             }
             menu.addItem(loginItem)
+            let updateItem = createActionItem(title: "Check for updates...", symbolName: "arrow.triangle.2.circlepath") {
+                UpdateChecker.check()
+            }
+            menu.addItem(updateItem)
             let quitItem = createActionItem(title: "Quit", symbolName: "power") { [weak self] in
                 NSApplication.shared.terminate(nil)
             }

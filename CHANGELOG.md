@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.3
+
+- Add "Check for updates..." menu item that checks GitHub releases for new versions
+- Fix missing app icons for Apple Arcade games
+
 ## 1.0.2
 
 - Fix remote panel not coming to front via Mission Control when "Always on top" is disabled

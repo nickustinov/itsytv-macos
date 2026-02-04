@@ -38,15 +38,24 @@ final class AppIconLoader {
 
     private func fetchIcon(bundleID: String) {
         let country = Locale.current.region?.identifier.lowercased() ?? "us"
-        guard let url = URL(string: "https://itunes.apple.com/lookup?bundleId=\(bundleID)&entity=tvSoftware&country=\(country)&limit=1") else {
-            pending.remove(bundleID)
+        // Try tvSoftware first, then fall back to software (catches Apple Arcade games)
+        let entities = ["tvSoftware", "software"]
+        fetchIcon(bundleID: bundleID, country: country, entities: entities)
+    }
+
+    private func fetchIcon(bundleID: String, country: String, entities: [String]) {
+        guard let entity = entities.first else {
+            DispatchQueue.main.async { self.pending.remove(bundleID) }
             return
         }
 
-        URLSession.shared.dataTask(with: url) { [weak self] data, _, error in
-            defer {
-                DispatchQueue.main.async { self?.pending.remove(bundleID) }
-            }
+        guard let url = URL(string: "https://itunes.apple.com/lookup?bundleId=\(bundleID)&entity=\(entity)&country=\(country)&limit=1") else {
+            fetchIcon(bundleID: bundleID, country: country, entities: Array(entities.dropFirst()))
+            return
+        }
+
+        URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
+            guard let self else { return }
 
             guard let data,
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -55,19 +64,24 @@ final class AppIconLoader {
                   let iconURLString = first["artworkUrl512"] as? String
                       ?? first["artworkUrl100"] as? String,
                   let iconURL = URL(string: iconURLString) else {
+                self.fetchIcon(bundleID: bundleID, country: country, entities: Array(entities.dropFirst()))
                 return
             }
 
-            // Download the actual image
-            guard let imageData = try? Data(contentsOf: iconURL),
-                  let image = NSImage(data: imageData) else {
-                log.debug("Failed to download icon for \(bundleID)")
-                return
-            }
+            URLSession.shared.dataTask(with: iconURL) { [weak self] imageData, _, _ in
+                defer {
+                    DispatchQueue.main.async { self?.pending.remove(bundleID) }
+                }
 
-            DispatchQueue.main.async {
-                self?.icons[bundleID] = image
-            }
+                guard let imageData, let image = NSImage(data: imageData) else {
+                    log.debug("Failed to download icon for \(bundleID)")
+                    return
+                }
+
+                DispatchQueue.main.async {
+                    self?.icons[bundleID] = image
+                }
+            }.resume()
         }.resume()
     }
 }
