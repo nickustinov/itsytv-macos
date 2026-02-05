@@ -34,5 +34,8 @@ Package.resolved
 .idea/
 .vscode/
 
+# Build artifacts
+dist/
+
 # Research notes
 itsytv.md
