@@ -386,7 +386,8 @@ final class AppController: NSObject, NSMenuDelegate {
         panel.delegate = self
         panel.hasShadow = true
 
-        panel.orderFrontRegardless()
+        NSApp.activate(ignoringOtherApps: true)
+        panel.makeKeyAndOrderFront(nil)
 
         // Position after makeKeyAndOrderFront — AppKit constrains the
         // frame during ordering for .statusBar level panels, so we must

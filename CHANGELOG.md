@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.1
+
+- Fix remote panel not receiving keyboard focus when opened via global hotkey
+
 ## 1.1.0
 
 - Add global hotkeys for Apple TVs (assign a keyboard shortcut to quickly open the remote for a specific device)
