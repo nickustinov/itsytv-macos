@@ -81,22 +81,39 @@ itsytv/
 ├── Protocol/
 │   ├── AppleTVManager.swift       # Orchestrator: discovery → pairing → session → commands
 │   ├── CompanionConnection.swift  # TCP connection and frame handling
+│   ├── CompanionFrame.swift       # Companion Link frame structure (type + length + payload)
 │   ├── CompanionCommands.swift    # HID buttons, session start, app launching
-│   └── TextInputSession.swift     # Live text input to Apple TV text fields
+│   ├── TextInputSession.swift     # Live text input to Apple TV text fields
+│   ├── OPACK.swift                # Apple's OPACK binary serialization format
+│   ├── BinaryPlist.swift          # Binary plist encoder with NSKeyedArchiver UIDs
+│   └── TLV8.swift                 # TLV8 encoding for HomeKit-style pairing
 ├── Crypto/
+│   ├── CompanionCrypto.swift      # ChaCha20-Poly1305 encryption for Companion protocol
+│   ├── CryptoHelpers.swift        # Shared helpers (nonce padding, HKDF-SHA512)
+│   ├── PairSetup.swift            # SRP-based pair-setup flow (M1–M6)
+│   ├── PairVerify.swift           # Pair-verify flow (M1–M4) with stored credentials
 │   └── KeychainStorage.swift      # Secure credential persistence in macOS Keychain
 ├── AirPlay/
-│   └── AirPlayMRPTunnel.swift     # AirPlay tunnel for media remote protocol
+│   ├── AirPlayControlChannel.swift # HTTP/RTSP client with pair-verify and HAP encryption
+│   ├── AirPlayPairVerify.swift    # Pair-verify flow (M1–M4) over AirPlay HTTP
+│   ├── AirPlayMRPTunnel.swift     # AirPlay tunnel for media remote protocol
+│   ├── DataStreamChannel.swift    # MRP protobuf transport over AirPlay 2 with framing
+│   ├── HAPChannel.swift           # Base class for HAP-encrypted TCP channels
+│   └── HAPSession.swift           # HAP session encryption with block framing
 ├── MRP/
 │   ├── MRPManager.swift           # Now-playing state and media commands
+│   ├── NowPlayingState.swift      # Now-playing metadata structure
 │   └── Proto/                     # Protobuf definitions and generated Swift code
 ├── DesignSystem/
 │   ├── DesignSystem.swift         # Colours, typography, spacing, sizing tokens
 │   └── HighlightingMenuItemView.swift # Custom NSView for interactive menu items
-└── UI/
-    ├── AppController.swift        # NSStatusItem, menu, floating panel, keyboard monitor
-    ├── MenuBarView.swift          # SwiftUI views: remote, now playing, app grid
-    └── AppIconLoader.swift        # App icons from iTunes Lookup API
+├── UI/
+│   ├── AppController.swift        # NSStatusItem, menu, floating panel, keyboard monitor
+│   ├── MenuBarView.swift          # SwiftUI views: remote, now playing, app grid
+│   └── AppIconLoader.swift        # App icons from iTunes Lookup API
+└── Utilities/
+    ├── UpdateChecker.swift        # GitHub release checker
+    └── HotkeyManager.swift        # Global hotkey registration
 ```
 
 ## Building
