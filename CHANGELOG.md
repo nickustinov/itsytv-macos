@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.0
+
+- Add global hotkeys for Apple TVs (assign a keyboard shortcut to quickly open the remote for a specific device)
+- Show green Apple TV icon for paired devices in the menu
+- Add ⌘W and ⌘H shortcuts to close the remote panel
+
 ## 1.0.6
 
 - Fix volume buttons only responding to clicks on the +/- icons instead of the entire button area

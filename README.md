@@ -15,6 +15,7 @@ A native macOS menu bar app for controlling your Apple TV.
 - **Now playing** — Artwork, title, artist, progress bar, and playback controls
 - **App launcher** — Grid of installed apps with icons fetched from the App Store
 - **Multiple devices** — Pair and switch between multiple Apple TVs
+- **Global hotkeys** — Assign keyboard shortcuts to instantly open the remote for specific Apple TVs
 - **Per-device panel position** — Remembers where you placed the remote for each Apple TV
 - **Launch at login** — Optional auto-start from the menu bar
 - **Unpair** — Remove pairing credentials from the panel menu

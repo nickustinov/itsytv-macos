@@ -21,7 +21,7 @@ struct RemoteControlView: View {
                     .font(.subheadline)
                     .lineLimit(1)
                 Spacer()
-                PanelMenuButton {
+                PanelMenuButton(deviceID: manager.connectedDeviceID ?? "") {
                     if let deviceID = manager.connectedDeviceID {
                         KeychainStorage.delete(for: deviceID)
                     }

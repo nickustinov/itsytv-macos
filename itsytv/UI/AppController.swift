@@ -26,7 +26,23 @@ final class AppController: NSObject, NSMenuDelegate {
         setupStatusItem()
         rebuildMenu()
         startObserving()
+        setupHotkeyHandler()
         manager.startScanning()
+    }
+
+    private func setupHotkeyHandler() {
+        HotkeyManager.shared.reregisterAll()
+        HotkeyManager.shared.onHotkeyPressed = { [weak self] deviceID in
+            guard let self else { return }
+            // Find the device and connect
+            if let device = self.manager.discoveredDevices.first(where: { $0.id == deviceID }) {
+                self.manager.connect(to: device)
+                // If paired, show panel immediately
+                if KeychainStorage.load(for: deviceID) != nil {
+                    self.showPanel()
+                }
+            }
+        }
     }
 
     // MARK: - Setup
@@ -150,7 +166,7 @@ final class AppController: NSObject, NSMenuDelegate {
                 UpdateChecker.check()
             }
             menu.addItem(updateItem)
-            let quitItem = createActionItem(title: "Quit", symbolName: "power") { [weak self] in
+            let quitItem = createActionItem(title: "Quit", symbolName: "power") {
                 NSApplication.shared.terminate(nil)
             }
             menu.addItem(quitItem)
@@ -181,31 +197,33 @@ final class AppController: NSObject, NSMenuDelegate {
         let containerView = HighlightingMenuItemView(frame: NSRect(x: 0, y: 0, width: width, height: height))
         containerView.closesMenuOnAction = isPaired
 
-        // Icon
+        // Icon (green for paired devices)
         let iconSize = DS.ControlSize.iconMedium
         let iconY = (height - iconSize) / 2
         let iconView = NSImageView(frame: NSRect(x: DS.Spacing.md, y: iconY, width: iconSize, height: iconSize))
         iconView.image = NSImage(systemSymbolName: "appletv.fill", accessibilityDescription: nil)
-        iconView.contentTintColor = DS.Colors.iconForeground
+        iconView.contentTintColor = isPaired ? .systemGreen : DS.Colors.iconForeground
         iconView.imageScaling = .scaleProportionallyUpOrDown
         containerView.addSubview(iconView)
 
-        // "PAIRED" badge (right-aligned)
-        var labelRightEdge = width - DS.Spacing.md
-        if isPaired {
-            let badgeFont = NSFont.systemFont(ofSize: 9, weight: .medium)
-            let badgeAttr = NSAttributedString(string: "PAIRED", attributes: [.font: badgeFont])
-            let badgeTextSize = badgeAttr.size()
-            let badgePadH: CGFloat = 5
-            let badgePadV: CGFloat = 2
-            let badgeW = badgeTextSize.width + badgePadH * 2
-            let badgeH = badgeTextSize.height + badgePadV * 2
-            let badgeX = width - DS.Spacing.md - badgeW
-            let badgeY = (height - badgeH) / 2
+        // Hotkey (right-aligned, for paired devices with assigned hotkey)
+        let rightPadding: CGFloat = 20
+        var labelRightEdge = width - rightPadding
+        if isPaired, let keys = HotkeyStorage.load(deviceID: device.id) {
+            let hotkeyFont = NSFont.menuFont(ofSize: 13)
+            let hotkeyStr = keys.displayString
+            let hotkeyAttr = NSAttributedString(string: hotkeyStr, attributes: [.font: hotkeyFont])
+            let hotkeyTextSize = hotkeyAttr.size()
+            let hotkeyW = ceil(hotkeyTextSize.width) + 4
+            let hotkeyX = width - rightPadding - hotkeyW
+            let hotkeyY = (height - hotkeyTextSize.height) / 2
 
-            let badge = PairedBadgeView(frame: NSRect(x: badgeX, y: badgeY, width: badgeW, height: badgeH))
-            containerView.addSubview(badge)
-            labelRightEdge = badgeX - DS.Spacing.xs
+            let hotkeyLabel = NSTextField(labelWithString: hotkeyStr)
+            hotkeyLabel.frame = NSRect(x: hotkeyX, y: hotkeyY, width: hotkeyW, height: hotkeyTextSize.height)
+            hotkeyLabel.font = hotkeyFont
+            hotkeyLabel.textColor = .tertiaryLabelColor
+            containerView.addSubview(hotkeyLabel)
+            labelRightEdge = hotkeyX - DS.Spacing.sm
         }
 
         // Name label
@@ -493,6 +511,18 @@ final class AppController: NSObject, NSMenuDelegate {
                 r = current.nextResponder
             }
         }
+
+        // Cmd+W or Cmd+H closes the panel
+        if event.modifierFlags.contains(.command) {
+            switch event.keyCode {
+            case 13, 4: // W, H
+                manager.disconnect()
+                return true
+            default:
+                break
+            }
+        }
+
         switch event.keyCode {
         case 126: manager.pressButton(.up); return true       // ↑
         case 125: manager.pressButton(.down); return true     // ↓
@@ -550,12 +580,25 @@ private final class ArrowCursorHostingView<Content: View>: NSHostingView<Content
 }
 
 struct PanelMenuButton: View {
+    let deviceID: String
     let onUnpair: () -> Void
     @AppStorage("alwaysOnTop") private var alwaysOnTop = true
+    @State private var showingHotkeyRecorder = false
+    @State private var currentHotkey: ShortcutKeys?
 
     var body: some View {
         Menu {
             Toggle("Always on top", isOn: $alwaysOnTop)
+            Divider()
+            Button(hotkeyButtonTitle) {
+                showingHotkeyRecorder = true
+            }
+            if currentHotkey != nil {
+                Button("Remove hotkey", role: .destructive) {
+                    HotkeyStorage.save(deviceID: deviceID, keys: nil)
+                    currentHotkey = nil
+                }
+            }
             Divider()
             Button("Unpair", role: .destructive, action: onUnpair)
         } label: {
@@ -572,6 +615,147 @@ struct PanelMenuButton: View {
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .fixedSize()
+        .popover(isPresented: $showingHotkeyRecorder) {
+            ShortcutRecorderView(deviceID: deviceID) { keys in
+                currentHotkey = keys
+                showingHotkeyRecorder = false
+            }
+        }
+        .onAppear {
+            currentHotkey = HotkeyStorage.load(deviceID: deviceID)
+        }
+    }
+
+    private var hotkeyButtonTitle: String {
+        if let keys = currentHotkey {
+            return "Change hotkey (\(keys.displayString))"
+        }
+        return "Assign hotkey..."
+    }
+}
+
+struct ShortcutRecorderView: View {
+    let deviceID: String
+    let onRecorded: (ShortcutKeys?) -> Void
+    @State private var isRecording = false
+    @State private var recordedKeys: ShortcutKeys?
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Text(displayText)
+                .font(.system(.title2, design: .monospaced))
+                .foregroundStyle(isRecording && recordedKeys == nil ? .secondary : .primary)
+                .frame(minWidth: 100, minHeight: 30)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(Color.secondary.opacity(0.15))
+                .cornerRadius(8)
+
+            Text("Use ⌘, ⌥, ⌃, ⇧ with a key")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            HStack(spacing: 12) {
+                Button("Cancel") {
+                    onRecorded(HotkeyStorage.load(deviceID: deviceID))
+                }
+                .keyboardShortcut(.cancelAction)
+
+                Button("Save") {
+                    if let keys = recordedKeys {
+                        HotkeyStorage.save(deviceID: deviceID, keys: keys)
+                    }
+                    onRecorded(recordedKeys)
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(recordedKeys == nil)
+            }
+        }
+        .padding(20)
+        .frame(width: 220)
+        .background(ShortcutRecorderHelper(isRecording: $isRecording, recordedKeys: $recordedKeys))
+        .onAppear {
+            isRecording = true
+            recordedKeys = HotkeyStorage.load(deviceID: deviceID)
+        }
+        .onDisappear {
+            isRecording = false
+        }
+    }
+
+    private var displayText: String {
+        if let keys = recordedKeys {
+            return keys.displayString
+        }
+        return isRecording ? "Press keys..." : "None"
+    }
+}
+
+struct ShortcutRecorderHelper: NSViewRepresentable {
+    @Binding var isRecording: Bool
+    @Binding var recordedKeys: ShortcutKeys?
+
+    func makeNSView(context: Context) -> ShortcutRecorderNSView {
+        let view = ShortcutRecorderNSView()
+        view.onShortcutRecorded = { keys in
+            recordedKeys = keys
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: ShortcutRecorderNSView, context: Context) {
+        nsView.isRecording = isRecording
+    }
+}
+
+final class ShortcutRecorderNSView: NSView {
+    var isRecording = false
+    var onShortcutRecorded: ((ShortcutKeys) -> Void)?
+    private var monitor: Any?
+
+    override var acceptsFirstResponder: Bool { true }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if window != nil {
+            setupMonitor()
+        } else {
+            removeMonitor()
+        }
+    }
+
+    private func setupMonitor() {
+        removeMonitor()
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self, self.isRecording else { return event }
+
+            let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+
+            // Require at least one modifier
+            guard !modifiers.isEmpty else { return event }
+
+            // Ignore if only modifier keys pressed (no actual key)
+            let keyCode = event.keyCode
+            let modifierKeyCodes: Set<UInt16> = [54, 55, 56, 57, 58, 59, 60, 61, 62, 63] // Cmd, Shift, Option, Ctrl variants
+            if modifierKeyCodes.contains(keyCode) { return event }
+
+            let keys = ShortcutKeys(modifiers: modifiers.rawValue, keyCode: keyCode)
+            DispatchQueue.main.async {
+                self.onShortcutRecorded?(keys)
+            }
+            return nil
+        }
+    }
+
+    private func removeMonitor() {
+        if let monitor {
+            NSEvent.removeMonitor(monitor)
+            self.monitor = nil
+        }
+    }
+
+    deinit {
+        removeMonitor()
     }
 }
 
@@ -748,26 +932,6 @@ final class PairingMenuItem: NSMenuItem {
                 digitBox.needsDisplay = true
             }
         }
-    }
-}
-
-// MARK: - Paired badge
-
-private final class PairedBadgeView: NSView {
-
-    override func draw(_ dirtyRect: NSRect) {
-        NSColor.systemGreen.setFill()
-        NSBezierPath(roundedRect: bounds, xRadius: 3, yRadius: 3).fill()
-
-        let font = NSFont.systemFont(ofSize: 9, weight: .medium)
-        let str = NSAttributedString(string: "PAIRED", attributes: [
-            .font: font,
-            .foregroundColor: NSColor.white,
-        ])
-        let size = str.size()
-        let x = (bounds.width - size.width) / 2
-        let y = (bounds.height - size.height) / 2
-        str.draw(at: NSPoint(x: x, y: y))
     }
 }
 
