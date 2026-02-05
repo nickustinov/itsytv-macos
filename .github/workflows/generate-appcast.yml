@@ -1,5 +1,9 @@
 name: Generate Appcast
 
+permissions:
+  contents: read
+  pages: write
+
 on:
   release:
     types: [published]
@@ -16,15 +20,58 @@ jobs:
         with:
           python-version: '3.x'
 
+      # No external Python dependencies required; script uses urllib from the stdlib
+
+      - name: Check release assets
+        id: check_assets
+        run: |
+          python3 - <<'PY'
+          import json, os
+          path = os.environ.get('GITHUB_EVENT_PATH')
+          ok = False
+          if path and os.path.exists(path):
+              with open(path, 'r') as f:
+                  ev = json.load(f)
+              assets = ev.get('release', {}).get('assets', [])
+              ok = any(a.get('name', '').lower().endswith(('.zip', '.dmg', '.pkg')) for a in assets)
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+              out.write(f"has_assets={'true' if ok else 'false'}\n")
+          PY
+
       - name: Generate appcast.xml
+        if: steps.check_assets.outputs.has_assets == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           python3 scripts/generate_appcast.py --output docs/appcast.xml
 
+      - name: Warn when no macOS assets found
+        if: steps.check_assets.outputs.has_assets == 'false'
+        run: |
+          echo "::warning::No macOS assets (.zip, .dmg, .pkg) found in this release — skipping appcast generation and publish."
+
       - name: Publish to gh-pages
-        uses: peaceiris/actions-gh-pages@v3
+        if: steps.check_assets.outputs.has_assets == 'true'
+        uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./docs
+
+      - name: Enable GitHub Pages
+        if: steps.check_assets.outputs.has_assets == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          REPO_FULL="$REPO"
+          OWNER=$(echo "$REPO_FULL" | cut -d'/' -f1)
+          REPO_NAME=$(echo "$REPO_FULL" | cut -d'/' -f2)
+          echo "Enabling GitHub Pages for $REPO_FULL (gh-pages branch)..."
+          curl -sS -X PUT \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$OWNER/$REPO_NAME/pages" \
+            -d '{"source":{"branch":"gh-pages","path":"/"}}' \
+          | jq || true

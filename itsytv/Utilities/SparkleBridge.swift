@@ -10,10 +10,16 @@ import Foundation
 import Sparkle
 
 public func sparkle_checkForUpdates(feedURL: URL?) {
-    if let url = feedURL {
-        SUUpdater.shared()?.feedURL = url
+    DispatchQueue.main.async {
+        guard let updater = SUUpdater.shared() else {
+            NSLog("SparkleBridge: SUUpdater.shared() returned nil; skipping update check.")
+            return
+        }
+        if let url = feedURL {
+            updater.feedURL = url
+        }
+        updater.checkForUpdates(nil)
     }
-    SUUpdater.shared()?.checkForUpdates(nil)
 }
 
 #else

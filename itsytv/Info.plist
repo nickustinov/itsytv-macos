@@ -27,5 +27,9 @@
 		<string>_companion-link._tcp</string>
 		<string>_mediaremotetv._tcp</string>
 	</array>
+	
+	<!-- Sparkle feed URL: points to the generated appcast on GitHub Pages -->
+	<key>SUFeedURL</key>
+	<string>https://nickustinov.github.io/itsytv-macos/appcast.xml</string>
 </dict>
 </plist>
