@@ -60,6 +60,16 @@ enum DS {
             foreground
         }
 
+        static var remoteButton: NSColor {
+            NSColor(name: nil) { appearance in
+                appearance.isDark ? NSColor(white: 0.27, alpha: 1) : NSColor(white: 0.205, alpha: 1)
+            }
+        }
+
+        static var remoteButtonForeground: NSColor {
+            NSColor(white: 0.985, alpha: 1)
+        }
+
         static var border: NSColor {
             NSColor(name: nil) { appearance in
                 appearance.isDark ? NSColor(white: 0.269, alpha: 1) : NSColor(white: 0.922, alpha: 1)

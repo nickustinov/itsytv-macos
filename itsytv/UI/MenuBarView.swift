@@ -480,38 +480,54 @@ struct AppleAppButton: View {
 struct DPadView: View {
     let onPress: (CompanionButton, InputAction) -> Void
     let size: CGFloat
+    @State private var blinkOpacity: Double = 0
+
+    private func press(_ button: CompanionButton, _ action: InputAction) {
+        blink()
+        onPress(button, action)
+    }
+
+    private func blink() {
+        blinkOpacity = 0.25
+        withAnimation(.easeOut(duration: 0.2)) { blinkOpacity = 0 }
+    }
 
     var body: some View {
         ZStack {
             Circle()
-                .fill(Color(nsColor: DS.Colors.primary))
+                .fill(Color(nsColor: DS.Colors.remoteButton))
                 .frame(width: size, height: size)
 
             // Center select button — larger, subtly distinct from outer ring
             Circle()
-                .fill(Color(nsColor: DS.Colors.primaryForeground).opacity(0.08))
+                .fill(Color(nsColor: DS.Colors.remoteButtonForeground).opacity(0.08))
                 .frame(width: size * 0.5, height: size * 0.5)
                 .contentShape(Circle())
-                .onTapGesture(count: 2) { onPress(.select, .doubleClick) }
-                .onTapGesture { onPress(.select, .click) }
-                .onLongPressGesture { onPress(.select, .hold) }
+                .onTapGesture(count: 2) { press(.select, .doubleClick) }
+                .onTapGesture { press(.select, .click) }
+                .onLongPressGesture { press(.select, .hold) }
 
             // Direction dots
             VStack {
-                DPadDot { action in onPress(.up, action) }
+                DPadDot { action in press(.up, action) }
                 Spacer()
-                DPadDot { action in onPress(.down, action) }
+                DPadDot { action in press(.down, action) }
             }
             .frame(height: size)
             .padding(.vertical, 12)
 
             HStack {
-                DPadDot { action in onPress(.left, action) }
+                DPadDot { action in press(.left, action) }
                 Spacer()
-                DPadDot { action in onPress(.right, action) }
+                DPadDot { action in press(.right, action) }
             }
             .frame(width: size)
             .padding(.horizontal, 12)
+
+            Circle()
+                .fill(.white.opacity(blinkOpacity))
+                .frame(width: size, height: size)
+                .allowsHitTesting(false)
         }
     }
 }
@@ -521,7 +537,7 @@ struct DPadDot: View {
 
     var body: some View {
         Circle()
-            .fill(Color(nsColor: DS.Colors.primaryForeground))
+            .fill(Color(nsColor: DS.Colors.remoteButtonForeground))
             .frame(width: 5, height: 5)
             .frame(width: 30, height: 30)
             .contentShape(Rectangle())
@@ -535,6 +551,13 @@ struct RemoteCircleButton: View {
     let imageName: String
     let size: CGFloat
     let action: (InputAction) -> Void
+    @State private var blinkOpacity: Double = 0
+
+    private func press(_ input: InputAction) {
+        blinkOpacity = 0.25
+        withAnimation(.easeOut(duration: 0.2)) { blinkOpacity = 0 }
+        action(input)
+    }
 
     var body: some View {
         Image(imageName)
@@ -542,11 +565,12 @@ struct RemoteCircleButton: View {
             .scaledToFit()
             .frame(width: size * 0.33, height: size * 0.33)
             .frame(width: size, height: size)
-            .background(Circle().fill(Color(nsColor: DS.Colors.primary)))
+            .background(Circle().fill(Color(nsColor: DS.Colors.remoteButton)))
+            .overlay(Circle().fill(.white.opacity(blinkOpacity)).allowsHitTesting(false))
             .contentShape(Circle())
-            .onTapGesture(count: 2) { action(.doubleClick) }
-            .onTapGesture { action(.click) }
-            .onLongPressGesture { action(.hold) }
+            .onTapGesture(count: 2) { press(.doubleClick) }
+            .onTapGesture { press(.click) }
+            .onLongPressGesture { press(.hold) }
     }
 }
 
@@ -555,32 +579,39 @@ struct VolumePill: View {
     let height: CGFloat
     let onUp: () -> Void
     let onDown: () -> Void
+    @State private var blinkOpacity: Double = 0
+
+    private func blink() {
+        blinkOpacity = 0.25
+        withAnimation(.easeOut(duration: 0.2)) { blinkOpacity = 0 }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
-            Button(action: onUp) {
+            Button(action: { blink(); onUp() }) {
                 Image(systemName: "plus")
                     .font(.system(size: width * 0.3, weight: .medium))
-                    .foregroundStyle(Color(nsColor: DS.Colors.primaryForeground))
+                    .foregroundStyle(Color(nsColor: DS.Colors.remoteButtonForeground))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
 
-            Color(nsColor: DS.Colors.primaryForeground).opacity(0.15)
+            Color(nsColor: DS.Colors.remoteButtonForeground).opacity(0.15)
                 .frame(height: 1)
 
-            Button(action: onDown) {
+            Button(action: { blink(); onDown() }) {
                 Image(systemName: "minus")
                     .font(.system(size: width * 0.3, weight: .medium))
-                    .foregroundStyle(Color(nsColor: DS.Colors.primaryForeground))
+                    .foregroundStyle(Color(nsColor: DS.Colors.remoteButtonForeground))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
         }
         .frame(width: width, height: height)
-        .background(Capsule().fill(Color(nsColor: DS.Colors.primary)))
+        .background(Capsule().fill(Color(nsColor: DS.Colors.remoteButton)))
+        .overlay(Capsule().fill(.white.opacity(blinkOpacity)).allowsHitTesting(false))
         .clipShape(Capsule())
     }
 }
