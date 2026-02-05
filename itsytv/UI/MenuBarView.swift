@@ -285,7 +285,8 @@ struct RemoteTabContent: View {
                         RemoteCircleButton(imageName: "btnPlayPause", size: buttonSize) { action in
                             manager.pressButton(.playPause, action: action)
                         }
-                        RemoteCircleButton(imageName: "btnKeyboard", size: buttonSize) { _ in
+                        RemoteCircleButton(imageName: "btnKeyboard", size: buttonSize) { action in
+                            guard action == .click else { return }
                             showingKeyboard.toggle()
                             if !showingKeyboard {
                                 keyboardText = ""
@@ -477,6 +478,47 @@ struct AppleAppButton: View {
     }
 }
 
+// MARK: - Native gesture handler (no 300ms SwiftUI tap disambiguation delay)
+
+private struct RemoteButtonGesture: NSViewRepresentable {
+    let onInput: (InputAction) -> Void
+
+    func makeNSView(context: Context) -> RemoteButtonGestureNSView {
+        let view = RemoteButtonGestureNSView()
+        view.onInput = onInput
+        return view
+    }
+
+    func updateNSView(_ nsView: RemoteButtonGestureNSView, context: Context) {
+        nsView.onInput = onInput
+    }
+}
+
+private class RemoteButtonGestureNSView: NSView {
+    var onInput: ((InputAction) -> Void)?
+    private var holdTimer: Timer?
+    private var holdFired = false
+
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func mouseDown(with event: NSEvent) {
+        holdFired = false
+        holdTimer?.invalidate()
+        holdTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { [weak self] _ in
+            guard let self else { return }
+            self.holdFired = true
+            self.onInput?(.hold)
+        }
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        holdTimer?.invalidate()
+        holdTimer = nil
+        guard !holdFired else { return }
+        onInput?(.click)
+    }
+}
+
 struct DPadView: View {
     let onPress: (CompanionButton, InputAction) -> Void
     let size: CGFloat
@@ -502,10 +544,7 @@ struct DPadView: View {
             Circle()
                 .fill(Color(nsColor: DS.Colors.remoteButtonForeground).opacity(0.08))
                 .frame(width: size * 0.5, height: size * 0.5)
-                .contentShape(Circle())
-                .onTapGesture(count: 2) { press(.select, .doubleClick) }
-                .onTapGesture { press(.select, .click) }
-                .onLongPressGesture { press(.select, .hold) }
+                .overlay(RemoteButtonGesture { action in press(.select, action) })
 
             // Direction dots
             VStack {
@@ -540,10 +579,7 @@ struct DPadDot: View {
             .fill(Color(nsColor: DS.Colors.remoteButtonForeground))
             .frame(width: 5, height: 5)
             .frame(width: 30, height: 30)
-            .contentShape(Rectangle())
-            .onTapGesture(count: 2) { action(.doubleClick) }
-            .onTapGesture { action(.click) }
-            .onLongPressGesture { action(.hold) }
+            .overlay(RemoteButtonGesture(onInput: action))
     }
 }
 
@@ -567,10 +603,7 @@ struct RemoteCircleButton: View {
             .frame(width: size, height: size)
             .background(Circle().fill(Color(nsColor: DS.Colors.remoteButton)))
             .overlay(Circle().fill(.white.opacity(blinkOpacity)).allowsHitTesting(false))
-            .contentShape(Circle())
-            .onTapGesture(count: 2) { press(.doubleClick) }
-            .onTapGesture { press(.click) }
-            .onLongPressGesture { press(.hold) }
+            .overlay(RemoteButtonGesture { input in press(input) })
     }
 }
 

@@ -530,8 +530,8 @@ final class AppController: NSObject, NSMenuDelegate {
         case 123: manager.pressButton(.left); return true     // ←
         case 124: manager.pressButton(.right); return true    // →
         case 36:  manager.pressButton(.select); return true   // Return
-        case 51:  manager.pressButton(.menu); return true     // Backspace
-        case 53:  manager.pressButton(.home); return true     // Escape
+        case 51:  manager.pressButton(.home); return true     // Backspace
+        case 53:  manager.pressButton(.menu); return true     // Escape
         case 49:  manager.pressButton(.playPause); return true // Space
         default:  return false
         }

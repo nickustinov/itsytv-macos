@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.0
+
+- Keep remote buttons dark in both light and dark mode instead of inverting to white
+- Add subtle blink feedback when pressing remote buttons
+- Eliminate ~300ms click delay on remote buttons by replacing SwiftUI gesture recognizers with native event handling
+- Swap Escape and Backspace keyboard mappings (Escape = Back, Backspace = Home) for more intuitive navigation
+
 ## 1.1.1
 
 - Fix remote panel not receiving keyboard focus when opened via global hotkey
