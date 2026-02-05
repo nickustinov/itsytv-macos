@@ -139,6 +139,19 @@ gh release create v<VERSION> dist/itsytv-<VERSION>.dmg \
     --title "v<VERSION>" --notes "Release notes here"
 ```
 
+6. Update the Homebrew tap:
+
+```bash
+# Get SHA256 of the notarized DMG
+shasum -a 256 dist/itsytv-<VERSION>.dmg
+
+# Update Casks/itsytv.rb in homebrew-tap with new version and sha256
+cd ../homebrew-tap
+# Edit Casks/itsytv.rb
+git commit -am "Update itsytv to <VERSION>"
+git push
+```
+
 ## License
 
 MIT License © 2026 Nick Ustinov — see [LICENSE](LICENSE) for details.

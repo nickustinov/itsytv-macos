@@ -74,10 +74,13 @@ if security find-identity -v -p codesigning | grep -q "Developer ID Application"
     echo "==> Signing DMG..."
     codesign --force --sign "$SIGNING_IDENTITY" "$DMG_PATH"
 
+    SHA256=$(shasum -a 256 "$DMG_PATH" | cut -d' ' -f1)
+
     echo ""
     echo "==> Build complete!"
     echo "    App: $APP_BUNDLE"
     echo "    DMG: $DMG_PATH"
+    echo "    SHA256: $SHA256"
     echo ""
     echo "To notarize, run:"
     echo "    xcrun notarytool submit \"$DMG_PATH\" --apple-id <APPLE_ID> --team-id <TEAM_ID> --password <APP_SPECIFIC_PASSWORD> --wait"
@@ -85,6 +88,11 @@ if security find-identity -v -p codesigning | grep -q "Developer ID Application"
     echo ""
     echo "To create a GitHub release:"
     echo "    gh release create v$VERSION \"$DMG_PATH\" --title \"v$VERSION\" --generate-notes"
+    echo ""
+    echo "To update Homebrew tap (after notarizing and uploading to GitHub):"
+    echo "    1. Get SHA256 of the NOTARIZED DMG: shasum -a 256 \"$DMG_PATH\""
+    echo "    2. Update Casks/itsytv.rb in homebrew-tap with version \"$VERSION\" and new sha256"
+    echo "    3. Commit and push the tap"
 else
     echo "==> No Developer ID certificate found, skipping signing..."
 
