@@ -3,6 +3,7 @@ import os.log
 
 private let log = Logger(subsystem: "com.itsytv.app", category: "UpdateChecker")
 
+// Optional Sparkle bridge is provided in `SparkleBridge.swift` when Sparkle is added via SPM.
 enum UpdateChecker {
 
     private struct Release: Decodable {
@@ -10,7 +11,19 @@ enum UpdateChecker {
         let html_url: String
     }
 
+    // Public entry: performs an update check. If Sparkle is available (added via SPM),
+    // Sparkle will be used and will handle download/installation. Otherwise falls back
+    // to the existing behaviour (query GitHub API and open release page).
     static func check() {
+        // If Sparkle is available at compile time, prefer it and point it at a hosted appcast.
+#if canImport(Sparkle)
+        // User-facing appcast URL - update to point to where your appcast will be hosted.
+        // For example: https://<owner>.github.io/<repo>/appcast.xml
+        let appcastURL = URL(string: "https://nickustinov.github.io/itsytv-macos/appcast.xml")
+        sparkle_checkForUpdates(feedURL: appcastURL)
+        return
+#else
+        // Fallback: simple GitHub release check and open the release page in browser.
         let url = URL(string: "https://api.github.com/repos/nickustinov/itsytv-macos/releases/latest")!
         var request = URLRequest(url: url)
         request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
@@ -42,6 +55,7 @@ enum UpdateChecker {
                 }
             }
         }.resume()
+#endif
     }
 
     private static func isNewer(_ remote: String, than current: String) -> Bool {

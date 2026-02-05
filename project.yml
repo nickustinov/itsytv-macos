@@ -19,6 +19,9 @@ packages:
   SRP:
     url: https://github.com/adam-fowler/swift-srp.git
     from: "2.1.0"
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle.git
+    from: "2.3.0"
 
 targets:
   itsytv:
@@ -40,6 +43,8 @@ targets:
       - package: SwiftProtobuf
       - package: SRP
         product: SRP
+      - package: Sparkle
+        product: Sparkle
 
   itsytvTests:
     type: bundle.unit-test
