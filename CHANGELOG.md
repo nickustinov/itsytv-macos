@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.1
+
+- Fix two Apple TVs with the same name overwriting each other's credentials by using hardware-unique device ID
+- Fix factory-reset Apple TV requiring manual unpair/re-pair — stale credentials are now auto-deleted and fresh pairing starts automatically
+- Fix seek bar drag moving the window instead of scrubbing playback
+- Fix seek bar snapping back to old position before jumping to the seeked position
+
 ## 1.2.0
 
 - Keep remote buttons dark in both light and dark mode instead of inverting to white

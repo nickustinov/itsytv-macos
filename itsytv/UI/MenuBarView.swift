@@ -178,10 +178,14 @@ struct NowPlayingProgress: View {
     @State private var currentTime: TimeInterval = 0
     @State private var isSeeking = false
     @State private var seekTime: TimeInterval = 0
+    /// After seeking, hold the seeked position until the server catches up.
+    @State private var pendingSeekTarget: TimeInterval?
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     private var displayTime: TimeInterval {
-        isSeeking ? seekTime : currentTime
+        if isSeeking { return seekTime }
+        if let target = pendingSeekTarget { return target }
+        return currentTime
     }
 
     private var progress: Double {
@@ -218,6 +222,7 @@ struct NowPlayingProgress: View {
                             let position = fraction * duration
                             onSeek?(position)
                             currentTime = position
+                            pendingSeekTarget = position
                             isSeeking = false
                         }
                 )
@@ -237,7 +242,16 @@ struct NowPlayingProgress: View {
         .onAppear { currentTime = nowPlaying?.currentPosition ?? 0 }
         .onReceive(timer) { _ in
             if !isSeeking {
-                currentTime = nowPlaying?.currentPosition ?? 0
+                let serverTime = nowPlaying?.currentPosition ?? 0
+                if let target = pendingSeekTarget {
+                    // Clear hold once the server reports a position near the seek target
+                    if abs(serverTime - target) < 3 {
+                        pendingSeekTarget = nil
+                        currentTime = serverTime
+                    }
+                } else {
+                    currentTime = serverTime
+                }
             }
         }
     }
