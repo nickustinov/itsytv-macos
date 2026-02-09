@@ -353,19 +353,13 @@ struct RemoteTabContent: View {
 struct AppGridView: View {
     @Environment(AppleTVManager.self) private var manager
     @Environment(AppIconLoader.self) private var iconLoader
+    @State private var apps: [(bundleID: String, name: String)] = []
+    @State private var draggingBundleID: String?
 
     private let columns = [
         GridItem(.flexible(), spacing: 8),
         GridItem(.flexible(), spacing: 8),
     ]
-
-    private var thirdPartyApps: [(bundleID: String, name: String)] {
-        manager.installedApps.filter { AppIconLoader.builtInSymbols[$0.bundleID] == nil }
-    }
-
-    private var appleApps: [(bundleID: String, name: String)] {
-        manager.installedApps.filter { AppIconLoader.builtInSymbols[$0.bundleID] != nil }
-    }
 
     var body: some View {
         if manager.installedApps.isEmpty {
@@ -378,47 +372,81 @@ struct AppGridView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             ScrollView {
-                VStack(spacing: 0) {
-                    // Third-party apps with real icons
-                    LazyVGrid(columns: columns, spacing: 8) {
-                        ForEach(thirdPartyApps, id: \.bundleID) { app in
-                            AppButton(
-                                name: app.name,
-                                icon: iconLoader.icons[app.bundleID]
-                            ) {
-                                manager.launchApp(bundleID: app.bundleID)
+                LazyVGrid(columns: columns, spacing: 8) {
+                    ForEach(apps, id: \.bundleID) { app in
+                        appView(for: app)
+                            .opacity(draggingBundleID == app.bundleID ? 0.5 : 1)
+                            .onDrag {
+                                draggingBundleID = app.bundleID
+                                return NSItemProvider(object: app.bundleID as NSString)
                             }
-                        }
-                    }
-
-                    // Divider + Apple built-in apps
-                    if !appleApps.isEmpty {
-                        Divider()
-                            .padding(.vertical, 10)
-
-                        LazyVGrid(columns: columns, spacing: 8) {
-                            ForEach(appleApps, id: \.bundleID) { app in
-                                AppleAppButton(
-                                    name: app.name,
-                                    symbolName: AppIconLoader.builtInSymbols[app.bundleID]
-                                ) {
-                                    manager.launchApp(bundleID: app.bundleID)
-                                }
-                            }
-                        }
+                            .onDrop(
+                                of: [.text],
+                                delegate: AppReorderDropDelegate(
+                                    targetBundleID: app.bundleID,
+                                    apps: $apps,
+                                    draggingBundleID: $draggingBundleID,
+                                    onReorder: { manager.saveAppOrder($0.map(\.bundleID)) }
+                                )
+                            )
+                            .background(WindowDragBlocker())
                     }
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 10)
             }
-            .onChange(of: manager.installedApps.map(\.bundleID)) {
+            .onAppear {
+                apps = manager.orderedApps
                 iconLoader.loadIcons(for: manager.installedApps.map(\.bundleID))
             }
-            .onAppear {
+            .onChange(of: manager.installedApps.map(\.bundleID)) {
+                apps = manager.orderedApps
                 iconLoader.loadIcons(for: manager.installedApps.map(\.bundleID))
             }
         }
     }
+
+    @ViewBuilder
+    private func appView(for app: (bundleID: String, name: String)) -> some View {
+        if let symbolName = AppIconLoader.builtInSymbols[app.bundleID] {
+            AppleAppButton(name: app.name, symbolName: symbolName) {
+                manager.launchApp(bundleID: app.bundleID)
+            }
+        } else {
+            AppButton(name: app.name, icon: iconLoader.icons[app.bundleID]) {
+                manager.launchApp(bundleID: app.bundleID)
+            }
+        }
+    }
+}
+
+private struct AppReorderDropDelegate: DropDelegate {
+    let targetBundleID: String
+    @Binding var apps: [(bundleID: String, name: String)]
+    @Binding var draggingBundleID: String?
+    let onReorder: ([(bundleID: String, name: String)]) -> Void
+
+    func dropEntered(info: DropInfo) {
+        guard let dragging = draggingBundleID,
+              dragging != targetBundleID,
+              let fromIndex = apps.firstIndex(where: { $0.bundleID == dragging }),
+              let toIndex = apps.firstIndex(where: { $0.bundleID == targetBundleID }) else { return }
+        withAnimation(.easeInOut(duration: 0.2)) {
+            apps.move(fromOffsets: IndexSet(integer: fromIndex), toOffset: toIndex > fromIndex ? toIndex + 1 : toIndex)
+        }
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        onReorder(apps)
+        draggingBundleID = nil
+        return true
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: .move)
+    }
+
+    func dropExited(info: DropInfo) {}
 }
 
 struct AppButton: View {
@@ -720,7 +748,7 @@ struct SettingsView: View {
 
 /// Prevents `isMovableByWindowBackground` from intercepting drags on this view.
 /// Place as a `.background()` on any interactive area that needs to handle its own drag gestures.
-private struct WindowDragBlocker: NSViewRepresentable {
+struct WindowDragBlocker: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView {
         let view = NonDraggableView()
         view.setContentHuggingPriority(.defaultLow, for: .horizontal)

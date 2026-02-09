@@ -11,6 +11,8 @@ settings:
   base:
     SWIFT_VERSION: "5.10"
     MACOSX_DEPLOYMENT_TARGET: "14.0"
+    DEVELOPMENT_TEAM: R892A93W42
+    CODE_SIGN_STYLE: Automatic
 
 packages:
   SwiftProtobuf:
@@ -50,6 +52,7 @@ targets:
         excludes:
           - itsytvApp.swift
           - UI/**
+          - AppIntents/**
           - "**/*.proto"
     dependencies:
       - package: SwiftProtobuf

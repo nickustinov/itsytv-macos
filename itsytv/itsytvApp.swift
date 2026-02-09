@@ -1,4 +1,5 @@
 import SwiftUI
+import AppIntents
 
 @main
 struct itsytvApp: App {
@@ -13,11 +14,15 @@ struct itsytvApp: App {
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    static private(set) weak var shared: AppDelegate?
+
     let manager = AppleTVManager()
     let iconLoader = AppIconLoader()
     var appController: AppController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        Self.shared = self
         appController = AppController(manager: manager, iconLoader: iconLoader)
+        ItsyTVShortcuts.updateAppShortcutParameters()
     }
 }

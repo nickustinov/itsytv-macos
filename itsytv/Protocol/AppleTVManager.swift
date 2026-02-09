@@ -91,7 +91,7 @@ final class AppleTVManager {
             self?.handleFrame(frame)
         }
 
-        // Check for stored credentials
+        // Check for stored credentials (keyed by rpBA)
         if let credentials = KeychainStorage.load(for: device.id) {
             // Already paired — do pair-verify when connection is ready
             self.currentCredentials = credentials
@@ -498,6 +498,23 @@ final class AppleTVManager {
             }
         }
     }
+
+    // MARK: - App ordering
+
+    var orderedApps: [(bundleID: String, name: String)] {
+        let savedOrder = connectedDeviceID.flatMap { AppOrderStorage.load(deviceID: $0) }
+        return AppOrderStorage.applyOrder(
+            savedOrder: savedOrder,
+            apps: installedApps,
+            builtInBundleIDs: Set(AppIconLoader.builtInSymbols.keys)
+        )
+    }
+
+    func saveAppOrder(_ bundleIDs: [String]) {
+        guard let deviceID = connectedDeviceID else { return }
+        AppOrderStorage.save(deviceID: deviceID, order: bundleIDs)
+    }
+
 
     private func handleOPACKMessage(_ frame: CompanionFrame) {
         let message: OPACK.Value

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.0
+
+- Add drag-to-reorder in the Apps tab — custom order is saved per device
+- Add Shortcuts action "Open itsytv remote" for quick access from Control Center, Shortcuts app, and Spotlight
+- Fix pairing credentials lost between app updates due to missing keychain access group entitlement
+
 ## 1.2.1
 
 - Fix two Apple TVs with the same name overwriting each other's credentials by using hardware-unique device ID

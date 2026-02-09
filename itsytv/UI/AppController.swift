@@ -33,15 +33,35 @@ final class AppController: NSObject, NSMenuDelegate {
     private func setupHotkeyHandler() {
         HotkeyManager.shared.reregisterAll()
         HotkeyManager.shared.onHotkeyPressed = { [weak self] deviceID in
-            guard let self else { return }
-            // Find the device and connect
-            if let device = self.manager.discoveredDevices.first(where: { $0.id == deviceID }) {
-                self.manager.connect(to: device)
-                // If paired, show panel immediately
-                if KeychainStorage.load(for: deviceID) != nil {
-                    self.showPanel()
-                }
-            }
+            self?.openRemote(for: deviceID)
+        }
+    }
+
+    private var pendingOpenDeviceID: String?
+
+    func openRemote(for deviceID: String? = nil) {
+        let pairedIDs = KeychainStorage.allPairedDeviceIDs()
+        let targetID = deviceID ?? pairedIDs.first
+        let discoveredIDs = manager.discoveredDevices.map(\.id)
+        log.error("openRemote: pairedCount=\(pairedIDs.count, privacy: .public) targetID=\(targetID ?? "nil", privacy: .public) discoveredCount=\(discoveredIDs.count, privacy: .public)")
+        guard let targetID else {
+            log.error("openRemote: no targetID, returning")
+            return
+        }
+
+        if let device = manager.discoveredDevices.first(where: { $0.id == targetID }) {
+            log.error("openRemote: device found, connecting")
+            connectAndShow(device)
+        } else {
+            log.error("openRemote: device not discovered yet, setting pendingOpenDeviceID")
+            pendingOpenDeviceID = targetID
+        }
+    }
+
+    private func connectAndShow(_ device: AppleTVDevice) {
+        manager.connect(to: device)
+        if KeychainStorage.load(for: device.id) != nil {
+            showPanel()
         }
     }
 
@@ -74,6 +94,14 @@ final class AppController: NSObject, NSMenuDelegate {
     private func handleStateChange() {
         let currentStatus = manager.connectionStatus
         let currentDeviceCount = manager.discoveredDevices.count
+
+        // Fulfill pending openRemote when the target device is discovered
+        if let pendingID = pendingOpenDeviceID,
+           let device = manager.discoveredDevices.first(where: { $0.id == pendingID }) {
+            pendingOpenDeviceID = nil
+            connectAndShow(device)
+            return
+        }
 
         guard currentStatus != lastKnownStatus || currentDeviceCount != lastKnownDeviceCount else { return }
         lastKnownStatus = currentStatus
@@ -238,10 +266,7 @@ final class AppController: NSObject, NSMenuDelegate {
         containerView.addSubview(nameLabel)
 
         containerView.onAction = { [weak self] in
-            self?.manager.connect(to: device)
-            if isPaired {
-                self?.showPanel()
-            }
+            self?.openRemote(for: device.id)
         }
 
         let item = NSMenuItem(title: device.name, action: nil, keyEquivalent: "")

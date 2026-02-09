@@ -45,6 +45,9 @@ enum KeychainStorage {
 
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
+        if status != errSecSuccess {
+            log.error("load(\(deviceID)): SecItemCopyMatching failed with OSStatus \(status)")
+        }
         guard status == errSecSuccess, let data = result as? Data else {
             return nil
         }
@@ -76,9 +79,13 @@ enum KeychainStorage {
 
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
+        if status != errSecSuccess {
+            log.error("allPairedDeviceIDs: SecItemCopyMatching failed with OSStatus \(status)")
+        }
         guard status == errSecSuccess, let items = result as? [[String: Any]] else {
             return []
         }
+        log.error("allPairedDeviceIDs: found \(items.count) items")
 
         return items.compactMap { $0[kSecAttrAccount as String] as? String }
     }

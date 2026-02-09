@@ -68,9 +68,12 @@ final class DeviceDiscovery: NSObject {
         let flagStr = props["rpFl"] ?? "0x0"
         let flags = UInt64(flagStr.replacingOccurrences(of: "0x", with: ""), radix: 16) ?? 0
 
-        // Use rpBA (Bluetooth address) as a hardware-unique device ID.
-        // Falls back to service name if rpBA is absent.
-        let uniqueID = Self.extractUniqueID(props: props, serviceName: service.name)
+        // rpBA (Bluetooth address) is the only valid device ID.
+        // If not yet advertised, skip — the service will re-resolve with it later.
+        guard let uniqueID = props["rpBA"], !uniqueID.isEmpty else {
+            log.info("No rpBA for \(service.name) yet, skipping")
+            return
+        }
 
         log.info("Resolved: \(service.name) id=\(uniqueID) model=\(modelName ?? "nil") flags=0x\(String(flags, radix: 16))")
 
@@ -91,12 +94,6 @@ final class DeviceDiscovery: NSObject {
         }
         serviceToDeviceID[service.name] = uniqueID
 
-        // One-time migration: move credentials, hotkeys, and panel position
-        // from the old service-name key to the new rpBA key.
-        if uniqueID != service.name {
-            Self.migrateDeviceData(from: service.name, to: uniqueID)
-        }
-
         let device = AppleTVDevice(
             id: uniqueID,
             name: service.name,
@@ -108,48 +105,6 @@ final class DeviceDiscovery: NSObject {
         notifyChange()
     }
 
-    /// Extracts a unique device ID from TXT record properties.
-    /// Uses `rpBA` (Bluetooth address) when available, falls back to service name.
-    static func extractUniqueID(props: [String: String], serviceName: String) -> String {
-        if let rpBA = props["rpBA"], !rpBA.isEmpty {
-            return rpBA
-        }
-        return serviceName
-    }
-
-    /// Migrates credentials, hotkeys, and panel position from an old device ID to a new one.
-    /// Safe to call multiple times — skips if data already exists under the new ID.
-    static func migrateDeviceData(from oldID: String, to newID: String) {
-        // Credentials
-        if KeychainStorage.load(for: newID) == nil,
-           let creds = KeychainStorage.load(for: oldID) {
-            do {
-                try KeychainStorage.save(credentials: creds, for: newID)
-                KeychainStorage.delete(for: oldID)
-                log.info("Migrated credentials from '\(oldID)' to '\(newID)'")
-            } catch {
-                log.error("Failed to migrate credentials: \(error.localizedDescription)")
-            }
-        }
-
-        // Hotkeys
-        if HotkeyStorage.load(deviceID: newID) == nil,
-           let keys = HotkeyStorage.load(deviceID: oldID) {
-            HotkeyStorage.save(deviceID: newID, keys: keys)
-            HotkeyStorage.save(deviceID: oldID, keys: nil)
-            log.info("Migrated hotkey from '\(oldID)' to '\(newID)'")
-        }
-
-        // Panel position
-        let oldKey = "panelOrigin_\(oldID)"
-        let newKey = "panelOrigin_\(newID)"
-        if UserDefaults.standard.dictionary(forKey: newKey) == nil,
-           let pos = UserDefaults.standard.dictionary(forKey: oldKey) {
-            UserDefaults.standard.set(pos, forKey: newKey)
-            UserDefaults.standard.removeObject(forKey: oldKey)
-            log.info("Migrated panel position from '\(oldID)' to '\(newID)'")
-        }
-    }
 }
 
 extension DeviceDiscovery: NetServiceBrowserDelegate {
