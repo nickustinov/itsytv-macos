@@ -4,7 +4,7 @@
 
 - Add drag-to-reorder in the Apps tab — custom order is saved per device
 - Add Shortcuts action "Open itsytv remote" for quick access from Control Center, Shortcuts app, and Spotlight
-- Fix pairing credentials lost between app updates due to missing keychain access group entitlement
+- Fix pairing credentials lost due to rpBA (Bluetooth address) rotation — device ID reverted to stable service name
 
 ## 1.2.1
 

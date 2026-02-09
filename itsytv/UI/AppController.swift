@@ -40,10 +40,15 @@ final class AppController: NSObject, NSMenuDelegate {
     private var pendingOpenDeviceID: String?
 
     func openRemote(for deviceID: String? = nil) {
-        let pairedIDs = KeychainStorage.allPairedDeviceIDs()
-        let targetID = deviceID ?? pairedIDs.first
-        let discoveredIDs = manager.discoveredDevices.map(\.id)
-        log.error("openRemote: pairedCount=\(pairedIDs.count, privacy: .public) targetID=\(targetID ?? "nil", privacy: .public) discoveredCount=\(discoveredIDs.count, privacy: .public)")
+        let targetID: String?
+        if let deviceID {
+            targetID = deviceID
+        } else {
+            // Pick the first discovered device that has stored credentials
+            targetID = manager.discoveredDevices.first(where: { KeychainStorage.load(for: $0.id) != nil })?.id
+        }
+        let discoveredCount = manager.discoveredDevices.count
+        log.error("openRemote: targetID=\(targetID ?? "nil", privacy: .public) discoveredCount=\(discoveredCount, privacy: .public)")
         guard let targetID else {
             log.error("openRemote: no targetID, returning")
             return

@@ -10,8 +10,6 @@ final class DeviceDiscovery: NSObject {
     private var onChange: (([AppleTVDevice]) -> Void)?
     private var services: [String: NetService] = [:]
     private var devices: [String: AppleTVDevice] = [:]
-    /// Maps Bonjour service name → device unique ID (rpBA) for removal lookup.
-    private var serviceToDeviceID: [String: String] = [:]
 
     func start(onChange: @escaping ([AppleTVDevice]) -> Void) {
         self.onChange = onChange
@@ -40,7 +38,6 @@ final class DeviceDiscovery: NSObject {
         browser = nil
         services.removeAll()
         devices.removeAll()
-        serviceToDeviceID.removeAll()
     }
 
     fileprivate func notifyChange() {
@@ -68,40 +65,26 @@ final class DeviceDiscovery: NSObject {
         let flagStr = props["rpFl"] ?? "0x0"
         let flags = UInt64(flagStr.replacingOccurrences(of: "0x", with: ""), radix: 16) ?? 0
 
-        // rpBA (Bluetooth address) is the only valid device ID.
-        // If not yet advertised, skip — the service will re-resolve with it later.
-        guard let uniqueID = props["rpBA"], !uniqueID.isEmpty else {
-            log.info("No rpBA for \(service.name) yet, skipping")
-            return
-        }
-
-        log.info("Resolved: \(service.name) id=\(uniqueID) model=\(modelName ?? "nil") flags=0x\(String(flags, radix: 16))")
+        log.info("Resolved: \(service.name) model=\(modelName ?? "nil") flags=0x\(String(flags, radix: 16))")
 
         // Only show devices that support PIN pairing (Apple TVs).
         // HomePods, Macs, iPads etc. don't have the 0x4000 flag.
         guard flags & 0x4000 != 0 else {
-            if let oldID = serviceToDeviceID.removeValue(forKey: service.name) {
-                devices.removeValue(forKey: oldID)
-            }
+            devices.removeValue(forKey: service.name)
             notifyChange()
             return
         }
 
-        // If the unique ID changed for this service (e.g. rpBA appeared on re-resolve),
-        // remove the stale device entry under the old ID.
-        if let oldID = serviceToDeviceID[service.name], oldID != uniqueID {
-            devices.removeValue(forKey: oldID)
-        }
-        serviceToDeviceID[service.name] = uniqueID
-
+        // Service name is the stable device ID. rpBA rotates due to BLE privacy
+        // and cannot be used as a persistent key for keychain/settings.
         let device = AppleTVDevice(
-            id: uniqueID,
+            id: service.name,
             name: service.name,
             host: service.hostName ?? "",
             port: UInt16(service.port),
             modelName: modelName
         )
-        devices[uniqueID] = device
+        devices[service.name] = device
         notifyChange()
     }
 
@@ -118,9 +101,7 @@ extension DeviceDiscovery: NetServiceBrowserDelegate {
     func netServiceBrowser(_ browser: NetServiceBrowser, didRemove service: NetService, moreComing: Bool) {
         log.info("Removed service: \(service.name)")
         services.removeValue(forKey: service.name)
-        if let deviceID = serviceToDeviceID.removeValue(forKey: service.name) {
-            devices.removeValue(forKey: deviceID)
-        }
+        devices.removeValue(forKey: service.name)
         notifyChange()
     }
 }
