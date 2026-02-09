@@ -44,7 +44,7 @@ lipo -info "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 
 # Check if we should sign
 if security find-identity -v -p codesigning | grep -q "Developer ID Application"; then
-    SIGNING_IDENTITY="$(security find-identity -v -p codesigning | grep "Developer ID Application" | head -1 | sed 's/.*"\(.*\)".*/\1/')"
+    SIGNING_IDENTITY="$(security find-identity -v -p codesigning | grep "Developer ID Application.*R892A93W42" | head -1 | sed 's/.*"\(.*\)".*/\1/')"
 
     echo "==> Signing app with: $SIGNING_IDENTITY"
 
