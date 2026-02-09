@@ -84,6 +84,11 @@ final class DeviceDiscovery: NSObject {
             return
         }
 
+        // If the unique ID changed for this service (e.g. rpBA appeared on re-resolve),
+        // remove the stale device entry under the old ID.
+        if let oldID = serviceToDeviceID[service.name], oldID != uniqueID {
+            devices.removeValue(forKey: oldID)
+        }
         serviceToDeviceID[service.name] = uniqueID
 
         // One-time migration: move credentials, hotkeys, and panel position
