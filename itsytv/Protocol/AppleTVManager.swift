@@ -281,9 +281,9 @@ final class AppleTVManager {
                 let credentials = try pairSetup.processServerIdentity(m6Frame: frame, partialCredentials: partial)
                 log.info("Pair-setup complete — serverID: \(credentials.serverID)")
 
-                if let deviceName = connectedDeviceName {
+                if let deviceID = connectedDeviceID {
                     do {
-                        try KeychainStorage.save(credentials: credentials, for: deviceName)
+                        try KeychainStorage.save(credentials: credentials, for: deviceID)
                     } catch {
                         log.error("Failed to save credentials: \(error.localizedDescription)")
                     }
@@ -332,6 +332,19 @@ final class AppleTVManager {
                 connection?.send(frame: m3Frame)
             } catch {
                 log.error("Pair-verify M2 failed: \(error.localizedDescription)")
+
+                // Identity mismatch means the Apple TV was factory-reset or replaced.
+                // Delete stale credentials and start fresh pairing automatically.
+                if let device = connectedDevice, case .identityMismatch = error as? PairVerify.Error {
+                    log.info("Identity mismatch for \(device.id) — deleting stale credentials and re-pairing")
+                    KeychainStorage.delete(for: device.id)
+                    currentCredentials = nil
+                    connection?.disconnect()
+                    connection = nil
+                    connect(to: device)
+                    return
+                }
+
                 if isReconnecting {
                     log.info("Pair-verify failed during reconnect — retrying")
                     connection?.disconnect()

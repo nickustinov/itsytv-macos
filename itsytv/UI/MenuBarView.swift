@@ -203,6 +203,7 @@ struct NowPlayingProgress: View {
                 }
                 .frame(height: 12)
                 .contentShape(Rectangle())
+                .background(WindowDragBlocker())
                 .gesture(
                     DragGesture(minimumDistance: 0)
                         .onChanged { value in
@@ -701,4 +702,21 @@ struct SettingsView: View {
         .formStyle(.grouped)
         .frame(width: 400, height: 300)
     }
+}
+
+/// Prevents `isMovableByWindowBackground` from intercepting drags on this view.
+/// Place as a `.background()` on any interactive area that needs to handle its own drag gestures.
+private struct WindowDragBlocker: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = NonDraggableView()
+        view.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        view.setContentHuggingPriority(.defaultLow, for: .vertical)
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {}
+}
+
+private final class NonDraggableView: NSView {
+    override var mouseDownCanMoveWindow: Bool { false }
 }
