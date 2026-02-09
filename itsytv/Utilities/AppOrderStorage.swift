@@ -1,5 +1,24 @@
 import Foundation
 
+enum BuiltInApps {
+    static let bundleIDs: Set<String> = [
+        "com.apple.TVAppStore",
+        "com.apple.Arcade",
+        "com.apple.TVHomeSharing",
+        "com.apple.TVMovies",
+        "com.apple.TVMusic",
+        "com.apple.TVPhotos",
+        "com.apple.TVSearch",
+        "com.apple.TVSettings",
+        "com.apple.TVWatchList",
+        "com.apple.TVShows",
+        "com.apple.Sing",
+        "com.apple.facetime",
+        "com.apple.Fitness",
+        "com.apple.podcasts",
+    ]
+}
+
 enum AppOrderStorage {
     private static func key(for deviceID: String) -> String {
         "appOrder_\(deviceID)"

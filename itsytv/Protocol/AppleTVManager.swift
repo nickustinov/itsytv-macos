@@ -506,7 +506,7 @@ final class AppleTVManager {
         return AppOrderStorage.applyOrder(
             savedOrder: savedOrder,
             apps: installedApps,
-            builtInBundleIDs: Set(AppIconLoader.builtInSymbols.keys)
+            builtInBundleIDs: BuiltInApps.bundleIDs
         )
     }
 

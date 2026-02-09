@@ -13,7 +13,7 @@ A native macOS menu bar app for controlling your Apple TV.
 - **Keyboard navigation** — Arrow keys, Return, Backspace, Escape, Space mapped to remote buttons
 - **Text input** — Type directly into Apple TV text fields with a live keyboard
 - **Now playing** — Artwork, title, artist, progress bar, and playback controls
-- **App launcher** — Grid of installed apps with icons fetched from the App Store
+- **App launcher** — Grid of installed apps with icons fetched from the App Store; drag to reorder
 - **Multiple devices** — Pair and switch between multiple Apple TVs
 - **Global hotkeys** — Assign keyboard shortcuts to instantly open the remote for specific Apple TVs
 - **Per-device panel position** — Remembers where you placed the remote for each Apple TV
@@ -107,11 +107,14 @@ itsytv/
 ├── DesignSystem/
 │   ├── DesignSystem.swift         # Colours, typography, spacing, sizing tokens
 │   └── HighlightingMenuItemView.swift # Custom NSView for interactive menu items
+├── AppIntents/
+│   └── OpenRemoteIntent.swift     # Shortcuts action to open the remote for a specific Apple TV
 ├── UI/
 │   ├── AppController.swift        # NSStatusItem, menu, floating panel, keyboard monitor
 │   ├── MenuBarView.swift          # SwiftUI views: remote, now playing, app grid
 │   └── AppIconLoader.swift        # App icons from iTunes Lookup API
 └── Utilities/
+    ├── AppOrderStorage.swift      # Per-device drag-to-reorder persistence
     ├── UpdateChecker.swift        # GitHub release checker
     └── HotkeyManager.swift        # Global hotkey registration
 ```
