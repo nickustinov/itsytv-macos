@@ -36,30 +36,26 @@ Or download the latest DMG from [GitHub releases](https://github.com/nickustinov
 
 ## Troubleshooting
 
-### Nothing happens when I launch the app (MacBooks with notch)
+### Apple TV doesn't show a PIN code when pairing
 
-Itsytv is a menu bar app — it lives in the top-right area of your screen as a small TV icon, not in the Dock. On MacBooks with a notch or Dynamic Island, macOS hides menu bar icons that don't fit behind the notch — silently, with no warning. If your menu bar is crowded, the Itsytv icon may be there but invisible.
+If you send a pairing request but no PIN appears on your TV screen, your Apple TV is likely restricting which devices can connect to it. To fix this:
 
-**To fix this, free up menu bar space:**
-
-Hold **⌘ Cmd** and drag any icons you don't need off the menu bar. Once Itsytv appears, ⌘-drag it to the right so it stays visible.
-
-You can also hide system icons from System Settings:
-
-- **macOS 26 Tahoe** — System Settings → Menu Bar → Menu Bar Controls. Toggle off "Show in menu bar" for icons you don't need (Wi-Fi, Bluetooth, Focus, etc.)
-- **macOS 14–15 (Sonoma / Sequoia)** — System Settings → Control Center. Under each module, change "Show in menu bar" to "Don't show in menu bar"
-### Apple TV not showing a PIN code when pairing
-
-If your Apple TV doesn't display a pairing PIN, its settings are likely restricting connections.
-
-On your Apple TV:
-
-1. Open **Settings → AirPlay and HomeKit** (or AirPlay and Apple Home)
-2. Set **Allow access** to **Everyone**
+1. Open **Settings → AirPlay and Apple Home** on your Apple TV
+2. Set **Allow access** to **Anyone on the same network**
 3. Go to **Settings → General → Restrictions**
 4. Set both **AirPlay Settings** and **Remote App Pairing** to **Allow**
 
-Once paired, you can revert these settings back.
+This setting needs to stay on this value for itsytv to maintain a connection to your Apple TV.
+
+### Remote disappears after a few seconds
+
+If the remote panel closes on its own shortly after connecting, your Apple TV's AirPlay access setting is likely set to **Only people sharing this home**. Open **Settings** on your Apple TV, go to **AirPlay and Apple Home**, and change **Allow access** to **Anyone on the same network**.
+
+### Nothing happens when I launch the app
+
+Itsytv is a menu bar app — it lives in the top-right area of your screen as a small TV icon, not in the Dock. On MacBooks with a notch, macOS hides menu bar icons that don't fit behind the notch — silently, with no warning. If your menu bar is crowded, the itsytv icon may be there but invisible.
+
+To fix this, hold **⌘ Cmd** and drag any icons you don't need off the menu bar. Once itsytv appears, ⌘-drag it to the right so it stays visible.
 
 ## Requirements
 
