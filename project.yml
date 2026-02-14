@@ -35,7 +35,7 @@ targets:
         INFOPLIST_FILE: itsytv/Info.plist
         CODE_SIGN_ENTITLEMENTS: itsytv/itsytv.entitlements
         PRODUCT_BUNDLE_IDENTIFIER: com.itsytv.app
-        PRODUCT_NAME: itsytv
+        PRODUCT_NAME: Itsytv
         GENERATE_INFOPLIST_FILE: false
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     dependencies:

@@ -2,7 +2,7 @@
 set -e
 
 # Configuration
-APP_NAME="itsytv"
+APP_NAME="Itsytv"
 BUNDLE_ID="com.itsytv.app"
 VERSION=$(defaults read "$(pwd)/itsytv/Info.plist" CFBundleShortVersionString)
 
