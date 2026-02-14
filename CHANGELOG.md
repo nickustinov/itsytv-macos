@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.4.1
+
+- Fix system dock becoming inoperative after quitting itsytv (magnification and hover effects stopped working until another app was activated)
+
+## 1.4.0
+
+- Add keyboard shortcuts for Apple TV volume control (+/- keys when panel is focused)
+- Add ⌘K shortcut to toggle keyboard input
+- Add tooltip hints showing keyboard shortcuts when hovering over remote buttons
+- Make global hotkey toggle the remote panel (pressing it when already open closes it)
+- Add visual blink feedback when pressing remote buttons via keyboard
+
 ## 1.3.0
 
 - Add drag-to-reorder in the Apps tab — custom order is saved per device

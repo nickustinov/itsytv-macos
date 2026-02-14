@@ -14,6 +14,13 @@ final class AppleTVManager {
     var isScanning = false
     var installedApps: [(bundleID: String, name: String)] = []
     var mrpManager = MRPManager()
+    var keyboardBlinkButton: CompanionButton = .select
+    var keyboardBlinkCounter = 0
+    var keyboardToggleCounter = 0
+    func triggerKeyboardBlink(_ button: CompanionButton) {
+        keyboardBlinkButton = button
+        keyboardBlinkCounter &+= 1
+    }
 
     var connectedDeviceID: String? { connectedDevice?.id }
 

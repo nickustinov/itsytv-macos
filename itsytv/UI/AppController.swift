@@ -30,10 +30,29 @@ final class AppController: NSObject, NSMenuDelegate {
         manager.startScanning()
     }
 
+    func cleanup() {
+        removeKeyboardMonitor()
+        if let observer = alwaysOnTopObserver {
+            NotificationCenter.default.removeObserver(observer)
+            alwaysOnTopObserver = nil
+        }
+        observation?.cancel()
+        observation = nil
+        HotkeyManager.shared.unregisterAll()
+        panel?.close()
+        panel = nil
+        panelDeviceID = nil
+    }
+
     private func setupHotkeyHandler() {
         HotkeyManager.shared.reregisterAll()
         HotkeyManager.shared.onHotkeyPressed = { [weak self] deviceID in
-            self?.openRemote(for: deviceID)
+            guard let self else { return }
+            if self.panel?.isVisible == true && self.panelDeviceID == deviceID {
+                self.manager.disconnect()
+            } else {
+                self.openRemote(for: deviceID)
+            }
         }
     }
 
@@ -534,6 +553,21 @@ final class AppController: NSObject, NSMenuDelegate {
     }
 
     private func handleRemoteKeyDown(_ event: NSEvent) -> Bool {
+        // Cmd shortcuts work even when text input is focused
+        if event.modifierFlags.contains(.command) {
+            switch event.keyCode {
+            case 13, 4: // Cmd+W, Cmd+H
+                manager.disconnect()
+                return true
+            case 40: // Cmd+K
+                manager.keyboardToggleCounter &+= 1
+                manager.triggerKeyboardBlink(.siri)
+                return true
+            default:
+                break
+            }
+        }
+
         // Ignore when any text input is focused (field editor, NSTextField, or SwiftUI text)
         if let responder = panel?.firstResponder {
             var r: NSResponder? = responder
@@ -543,28 +577,23 @@ final class AppController: NSObject, NSMenuDelegate {
             }
         }
 
-        // Cmd+W or Cmd+H closes the panel
-        if event.modifierFlags.contains(.command) {
-            switch event.keyCode {
-            case 13, 4: // W, H
-                manager.disconnect()
-                return true
-            default:
-                break
-            }
+        let button: CompanionButton? = switch event.keyCode {
+        case 126: .up
+        case 125: .down
+        case 123: .left
+        case 124: .right
+        case 36:  .select
+        case 51:  .home
+        case 53:  .menu
+        case 49:  .playPause
+        case 24:  .volumeUp
+        case 27:  .volumeDown
+        default:  nil
         }
-
-        switch event.keyCode {
-        case 126: manager.pressButton(.up); return true       // ↑
-        case 125: manager.pressButton(.down); return true     // ↓
-        case 123: manager.pressButton(.left); return true     // ←
-        case 124: manager.pressButton(.right); return true    // →
-        case 36:  manager.pressButton(.select); return true   // Return
-        case 51:  manager.pressButton(.home); return true     // Backspace
-        case 53:  manager.pressButton(.menu); return true     // Escape
-        case 49:  manager.pressButton(.playPause); return true // Space
-        default:  return false
-        }
+        guard let button else { return false }
+        manager.pressButton(button)
+        manager.triggerKeyboardBlink(button)
+        return true
     }
 
     // MARK: - NSMenuDelegate

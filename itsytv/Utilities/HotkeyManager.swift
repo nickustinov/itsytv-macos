@@ -161,8 +161,7 @@ final class HotkeyManager {
         }
     }
 
-    func reregisterAll() {
-        // Unregister all existing
+    func unregisterAll() {
         for entry in hotkeys.values {
             if let ref = entry.ref {
                 UnregisterEventHotKey(ref)
@@ -170,6 +169,10 @@ final class HotkeyManager {
         }
         hotkeys.removeAll()
         nextId = 1
+    }
+
+    func reregisterAll() {
+        unregisterAll()
 
         // Re-register from storage
         for (deviceID, keys) in HotkeyStorage.loadAll() {

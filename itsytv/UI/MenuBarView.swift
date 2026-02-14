@@ -286,10 +286,10 @@ struct RemoteTabContent: View {
             VStack(spacing: buttonGap) {
                 // Row 1: Back + TV/Home
                 HStack(spacing: buttonGap) {
-                    RemoteCircleButton(imageName: "btnBack", size: buttonSize) { action in
+                    RemoteCircleButton(imageName: "btnBack", button: .menu, shortcut: "Esc", size: buttonSize) { action in
                         manager.pressButton(.menu, action: action)
                     }
-                    RemoteCircleButton(imageName: "btnHome", size: buttonSize) { action in
+                    RemoteCircleButton(imageName: "btnHome", button: .home, shortcut: "⌫", size: buttonSize) { action in
                         manager.pressButton(.home, action: action)
                     }
                 }
@@ -297,10 +297,10 @@ struct RemoteTabContent: View {
                 // Rows 2-3: Play/Pause + Keyboard left, Volume pill right
                 HStack(alignment: .top, spacing: buttonGap) {
                     VStack(spacing: buttonGap) {
-                        RemoteCircleButton(imageName: "btnPlayPause", size: buttonSize) { action in
+                        RemoteCircleButton(imageName: "btnPlayPause", button: .playPause, shortcut: "Space", size: buttonSize) { action in
                             manager.pressButton(.playPause, action: action)
                         }
-                        RemoteCircleButton(imageName: "btnKeyboard", size: buttonSize) { action in
+                        RemoteCircleButton(imageName: "btnKeyboard", button: .siri, shortcut: "⌘K", size: buttonSize) { action in
                             guard action == .click else { return }
                             showingKeyboard.toggle()
                             if !showingKeyboard {
@@ -346,6 +346,13 @@ struct RemoteTabContent: View {
         }
         .padding(.horizontal, padding)
         .padding(.bottom, 12)
+        .onChange(of: manager.keyboardToggleCounter) { _, _ in
+            showingKeyboard.toggle()
+            if !showingKeyboard {
+                keyboardText = ""
+                manager.resetTextInputState()
+            }
+        }
     }
 }
 
@@ -563,9 +570,12 @@ private class RemoteButtonGestureNSView: NSView {
 }
 
 struct DPadView: View {
+    @Environment(AppleTVManager.self) private var manager
     let onPress: (CompanionButton, InputAction) -> Void
     let size: CGFloat
     @State private var blinkOpacity: Double = 0
+
+    private static let dpadButtons: Set<CompanionButton> = [.up, .down, .left, .right, .select]
 
     private func press(_ button: CompanionButton, _ action: InputAction) {
         blink()
@@ -588,20 +598,21 @@ struct DPadView: View {
                 .fill(Color(nsColor: DS.Colors.remoteButtonForeground).opacity(0.08))
                 .frame(width: size * 0.5, height: size * 0.5)
                 .overlay(RemoteButtonGesture { action in press(.select, action) })
+                .help("Return")
 
             // Direction dots
             VStack {
-                DPadDot { action in press(.up, action) }
+                DPadDot(shortcut: "↑") { action in press(.up, action) }
                 Spacer()
-                DPadDot { action in press(.down, action) }
+                DPadDot(shortcut: "↓") { action in press(.down, action) }
             }
             .frame(height: size)
             .padding(.vertical, 12)
 
             HStack {
-                DPadDot { action in press(.left, action) }
+                DPadDot(shortcut: "←") { action in press(.left, action) }
                 Spacer()
-                DPadDot { action in press(.right, action) }
+                DPadDot(shortcut: "→") { action in press(.right, action) }
             }
             .frame(width: size)
             .padding(.horizontal, 12)
@@ -611,10 +622,14 @@ struct DPadView: View {
                 .frame(width: size, height: size)
                 .allowsHitTesting(false)
         }
+        .onChange(of: manager.keyboardBlinkCounter) { _, _ in
+            if Self.dpadButtons.contains(manager.keyboardBlinkButton) { blink() }
+        }
     }
 }
 
 struct DPadDot: View {
+    let shortcut: String
     let action: (InputAction) -> Void
 
     var body: some View {
@@ -623,19 +638,27 @@ struct DPadDot: View {
             .frame(width: 5, height: 5)
             .frame(width: 30, height: 30)
             .overlay(RemoteButtonGesture(onInput: action))
+            .help(shortcut)
     }
 }
 
 struct RemoteCircleButton: View {
+    @Environment(AppleTVManager.self) private var manager
     let imageName: String
+    let button: CompanionButton
+    let shortcut: String
     let size: CGFloat
     let action: (InputAction) -> Void
     @State private var blinkOpacity: Double = 0
 
     private func press(_ input: InputAction) {
+        blink()
+        action(input)
+    }
+
+    private func blink() {
         blinkOpacity = 0.25
         withAnimation(.easeOut(duration: 0.2)) { blinkOpacity = 0 }
-        action(input)
     }
 
     var body: some View {
@@ -647,10 +670,15 @@ struct RemoteCircleButton: View {
             .background(Circle().fill(Color(nsColor: DS.Colors.remoteButton)))
             .overlay(Circle().fill(.white.opacity(blinkOpacity)).allowsHitTesting(false))
             .overlay(RemoteButtonGesture { input in press(input) })
+            .help(shortcut)
+            .onChange(of: manager.keyboardBlinkCounter) { _, _ in
+                if manager.keyboardBlinkButton == button { blink() }
+            }
     }
 }
 
 struct VolumePill: View {
+    @Environment(AppleTVManager.self) private var manager
     let width: CGFloat
     let height: CGFloat
     let onUp: () -> Void
@@ -672,6 +700,7 @@ struct VolumePill: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .help("+")
 
             Color(nsColor: DS.Colors.remoteButtonForeground).opacity(0.15)
                 .frame(height: 1)
@@ -684,11 +713,17 @@ struct VolumePill: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .help("−")
         }
         .frame(width: width, height: height)
         .background(Capsule().fill(Color(nsColor: DS.Colors.remoteButton)))
         .overlay(Capsule().fill(.white.opacity(blinkOpacity)).allowsHitTesting(false))
         .clipShape(Capsule())
+        .onChange(of: manager.keyboardBlinkCounter) { _, _ in
+            if manager.keyboardBlinkButton == .volumeUp || manager.keyboardBlinkButton == .volumeDown {
+                blink()
+            }
+        }
     }
 }
 

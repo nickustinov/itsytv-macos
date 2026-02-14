@@ -25,4 +25,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         appController = AppController(manager: manager, iconLoader: iconLoader)
         ItsyTVShortcuts.updateAppShortcutParameters()
     }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        appController?.cleanup()
+    }
 }
