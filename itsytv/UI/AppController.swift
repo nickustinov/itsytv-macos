@@ -150,6 +150,9 @@ final class AppController: NSObject, NSMenuDelegate {
     }
 
     private var shouldShowItsyhomePromo: Bool {
+        if UserDefaults.standard.bool(forKey: "disableItsyhomePromo") {
+            return false
+        }
         let hasDevices = hasPairedDevice
         let isInstalled: Bool = {
             guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.nickustinov.itsyhome") else {
