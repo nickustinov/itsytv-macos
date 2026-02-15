@@ -1,3 +1,4 @@
+#if !APPSTORE
 import AppKit
 import os.log
 
@@ -89,3 +90,4 @@ enum UpdateChecker {
         alert.runModal()
     }
 }
+#endif

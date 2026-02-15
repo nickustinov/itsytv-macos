@@ -7,12 +7,19 @@ options:
   generateEmptyDirectories: true
   groupSortPosition: top
 
+configs:
+  Debug: debug
+  Debug-AppStore: debug
+  Release: release
+  Release-AppStore: release
+
 settings:
   base:
     SWIFT_VERSION: "5.10"
     MACOSX_DEPLOYMENT_TARGET: "14.0"
     DEVELOPMENT_TEAM: R892A93W42
     CODE_SIGN_STYLE: Automatic
+    CODE_SIGN_IDENTITY: "Apple Development"
 
 packages:
   SwiftProtobuf:
@@ -22,6 +29,31 @@ packages:
     url: https://github.com/adam-fowler/swift-srp.git
     from: "2.1.0"
 
+schemes:
+  itsytv:
+    build:
+      targets:
+        itsytv: all
+        itsytvTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - itsytvTests
+    archive:
+      config: Release
+  itsytv-appstore:
+    build:
+      targets:
+        itsytv: all
+    run:
+      config: Debug-AppStore
+    test:
+      config: Debug-AppStore
+    archive:
+      config: Release-AppStore
+
 targets:
   itsytv:
     type: application
@@ -30,6 +62,8 @@ targets:
       - path: itsytv
         excludes:
           - "**/*.proto"
+          - itsytv.entitlements
+          - itsytv-direct.entitlements
     settings:
       base:
         INFOPLIST_FILE: itsytv/Info.plist
@@ -38,6 +72,18 @@ targets:
         PRODUCT_NAME: Itsytv
         GENERATE_INFOPLIST_FILE: false
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        MARKETING_VERSION: "1.4.1"
+        CURRENT_PROJECT_VERSION: "14"
+        ENABLE_HARDENED_RUNTIME: true
+      configs:
+        Debug:
+          CODE_SIGN_ENTITLEMENTS: itsytv/itsytv-direct.entitlements
+        Release:
+          CODE_SIGN_ENTITLEMENTS: itsytv/itsytv-direct.entitlements
+        Debug-AppStore:
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: APPSTORE
+        Release-AppStore:
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: APPSTORE
     dependencies:
       - package: SwiftProtobuf
       - package: SRP

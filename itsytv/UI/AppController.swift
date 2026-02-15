@@ -195,10 +195,12 @@ final class AppController: NSObject, NSMenuDelegate {
             break
         default:
             menu.addItem(NSMenuItem.separator())
+            #if !APPSTORE
             if shouldShowItsyhomePromo {
                 menu.addItem(createItsyhomePromoItem())
                 menu.addItem(NSMenuItem.separator())
             }
+            #endif
             let loginItem = createCheckboxItem(
                 title: "Launch at login",
                 isOn: SMAppService.mainApp.status == .enabled
@@ -214,10 +216,12 @@ final class AppController: NSObject, NSMenuDelegate {
                 }
             }
             menu.addItem(loginItem)
+            #if !APPSTORE
             let updateItem = createActionItem(title: "Check for updates...", symbolName: "arrow.triangle.2.circlepath") {
                 UpdateChecker.check()
             }
             menu.addItem(updateItem)
+            #endif
             let quitItem = createActionItem(title: "Quit", symbolName: "power") {
                 NSApplication.shared.terminate(nil)
             }
@@ -617,12 +621,14 @@ extension NSPanel {
     /// AppKit bug: toggling the style mask flag alone does not update the
     /// underlying `kCGSPreventsActivationTagBit` tag (FB16484811).
     func syncActivationBehavior() {
+        #if !APPSTORE
         let prevents = styleMask.contains(.nonactivatingPanel)
         let sel = Selector(("_setPreventsActivation:"))
         guard let method = class_getMethodImplementation(type(of: self), sel) else { return }
         typealias Fn = @convention(c) (AnyObject, Selector, ObjCBool) -> Void
         let fn = unsafeBitCast(method, to: Fn.self)
         fn(self, sel, ObjCBool(prevents))
+        #endif
     }
 }
 

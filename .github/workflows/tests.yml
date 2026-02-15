@@ -21,7 +21,7 @@ jobs:
       - name: Run tests
         run: |
           xcodebuild test \
-            -scheme itsytvTests \
+            -scheme itsytv \
             -destination 'platform=macOS' \
             -resultBundlePath TestResults.xcresult \
             CODE_SIGN_IDENTITY="" \
