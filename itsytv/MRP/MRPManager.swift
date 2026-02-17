@@ -324,8 +324,8 @@ final class MRPManager {
         request.location = 0
         request.length = 1
         request.includeMetadata = true
-        request.artworkWidth = 300
-        request.artworkHeight = 300
+        request.artworkWidth = 600
+        request.artworkHeight = 600
         request.returnContentItemAssetsInUserCompletion = true
 
         var msg = MRP_ProtocolMessage()

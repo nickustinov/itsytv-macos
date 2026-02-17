@@ -404,11 +404,11 @@ struct AppGridView: View {
             }
             .onAppear {
                 apps = manager.orderedApps
-                iconLoader.loadIcons(for: manager.installedApps.map(\.bundleID))
+                iconLoader.loadIcons(for: manager.installedApps)
             }
             .onChange(of: manager.installedApps.map(\.bundleID)) {
                 apps = manager.orderedApps
-                iconLoader.loadIcons(for: manager.installedApps.map(\.bundleID))
+                iconLoader.loadIcons(for: manager.installedApps)
             }
         }
     }
