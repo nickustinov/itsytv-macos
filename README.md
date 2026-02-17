@@ -1,6 +1,12 @@
 # Itsytv
 
 [![Tests](https://github.com/nickustinov/itsytv-macos/actions/workflows/tests.yml/badge.svg)](https://github.com/nickustinov/itsytv-macos/actions/workflows/tests.yml)
+[![Release](https://img.shields.io/github/v/release/nickustinov/itsytv-macos)](https://github.com/nickustinov/itsytv-macos/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/nickustinov/itsytv-macos/total)](https://github.com/nickustinov/itsytv-macos/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Swift 5.10](https://img.shields.io/badge/swift-5.10-orange.svg)](https://swift.org)
+[![macOS 14+](https://img.shields.io/badge/macOS-14%2B-brightgreen.svg)](https://www.apple.com/macos/sonoma/)
+[![Homebrew](https://img.shields.io/badge/homebrew-tap-yellow.svg)](https://github.com/nickustinov/homebrew-tap)
 
 A native macOS menu bar app for controlling your Apple TV.
 
