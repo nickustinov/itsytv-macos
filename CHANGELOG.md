@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.2
+
+- Fix blurry now-playing artwork thumbnails by requesting higher-resolution images from Apple TV
+- Fix missing app icons for games whose tvOS bundle ID differs from their iOS listing (e.g. Tangle Tower)
+
 ## 1.4.1
 
 - Fix system dock becoming inoperative after quitting itsytv (magnification and hover effects stopped working until another app was activated)
