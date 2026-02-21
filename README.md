@@ -10,6 +10,10 @@
 
 A native macOS menu bar app for controlling your Apple TV.
 
+[![Download on the Mac App Store](https://developer.apple.com/app-store/marketing/guidelines/images/badge-download-on-the-mac-app-store.svg)](https://apps.apple.com/app/itsytv/id6759216148)
+
+❤️ If you enjoy Itsytv, grab the App Store version to support development and get automatic updates.
+
 ![itsytv hero](https://itsytv.app/itsytv-hero.png)
 
 ## Features
