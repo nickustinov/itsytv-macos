@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.3
+
+_(Development version - no changes yet)_
+
 ## 1.4.2
 
 - Fix blurry now-playing artwork thumbnails by requesting higher-resolution images from Apple TV
