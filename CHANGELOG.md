@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.3
+
+- Add tap-to-toggle remaining time on the duration label (click to switch between total duration and countdown)
+
 ## 1.4.2
 
 - Fix blurry now-playing artwork thumbnails by requesting higher-resolution images from Apple TV

@@ -175,6 +175,7 @@ struct NowPlayingProgress: View {
     let duration: TimeInterval
     var onSeek: ((Double) -> Void)?
 
+    @AppStorage("showRemainingTime") private var showRemainingTime = false
     @State private var currentTime: TimeInterval = 0
     @State private var isSeeking = false
     @State private var seekTime: TimeInterval = 0
@@ -234,9 +235,10 @@ struct NowPlayingProgress: View {
                     .font(.system(size: 9, design: .monospaced))
                     .foregroundStyle(.tertiary)
                 Spacer()
-                Text(formatTime(duration))
+                Text(showRemainingTime ? "-\(formatTime(duration - displayTime))" : formatTime(duration))
                     .font(.system(size: 9, design: .monospaced))
                     .foregroundStyle(.tertiary)
+                    .onTapGesture { showRemainingTime.toggle() }
             }
         }
         .onAppear { currentTime = nowPlaying?.currentPosition ?? 0 }
