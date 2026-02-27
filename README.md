@@ -39,7 +39,7 @@ Itsytv pairs naturally with [Itsyhome](https://itsyhome.app) — a free macOS me
 ## Install
 
 ```bash
-brew install --cask nickustinov/tap/itsytv
+brew install --cask itsytv
 ```
 
 Or download the latest DMG from [GitHub releases](https://github.com/nickustinov/itsytv-macos/releases).
