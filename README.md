@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Swift 5.10](https://img.shields.io/badge/swift-5.10-orange.svg)](https://swift.org)
 [![macOS 14+](https://img.shields.io/badge/macOS-14%2B-brightgreen.svg)](https://www.apple.com/macos/sonoma/)
-[![Homebrew](https://img.shields.io/badge/homebrew-tap-yellow.svg)](https://github.com/nickustinov/homebrew-tap)
+[![Homebrew](https://img.shields.io/badge/homebrew-cask-yellow.svg)](https://formulae.brew.sh/cask/itsytv)
 
 A native macOS menu bar app for controlling your Apple TV.
 
@@ -192,17 +192,10 @@ gh release create v<VERSION> dist/itsytv-<VERSION>.dmg \
     --title "v<VERSION>" --notes "Release notes here"
 ```
 
-6. Update the Homebrew tap:
+6. Update the Homebrew cask:
 
 ```bash
-# Get SHA256 of the notarized DMG
-shasum -a 256 dist/itsytv-<VERSION>.dmg
-
-# Update Casks/itsytv.rb in homebrew-tap with new version and sha256
-cd ../homebrew-tap
-# Edit Casks/itsytv.rb
-git commit -am "Update itsytv to <VERSION>"
-git push
+brew bump-cask-pr itsytv --version <VERSION>
 ```
 
 ## License
