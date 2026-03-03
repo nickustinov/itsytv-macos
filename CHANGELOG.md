@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.4
+
+- Fix Korean and other IME-based input (Japanese, Chinese) not working in keyboard text entry – characters were garbled into accented Latin due to incorrect binary plist string encoding
+
 ## 1.4.3
 
 - Add tap-to-toggle remaining time on the duration label (click to switch between total duration and countdown)

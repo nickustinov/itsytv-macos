@@ -270,8 +270,6 @@ struct RemoteTabContent: View {
     @Environment(AppleTVManager.self) private var manager
     @State private var showingKeyboard = false
     @State private var keyboardText = ""
-    @FocusState private var isKeyboardFocused: Bool
-
     private let padding: CGFloat = 8
     private let buttonSize: CGFloat = 60
     private let buttonGap: CGFloat = 12
@@ -322,28 +320,23 @@ struct RemoteTabContent: View {
             }
 
             if showingKeyboard {
-                TextField("", text: $keyboardText)
-                    .textFieldStyle(.plain)
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .padding(.vertical, 8)
-                    .padding(.horizontal, 12)
-                    .background(Capsule().fill(Color(nsColor: DS.Colors.muted)))
-                    .padding(.horizontal, 8)
-                    .padding(.top, 8)
-                    .focused($isKeyboardFocused)
-                    .onAppear {
-                        NSApp.activate(ignoringOtherApps: true)
-                        DispatchQueue.main.async { isKeyboardFocused = true }
-                    }
-                    .onChange(of: keyboardText) { _, newValue in
-                        manager.updateRemoteText(newValue)
-                    }
-                    .onSubmit {
+                ComposeAwareTextField(
+                    text: $keyboardText,
+                    onCommittedTextChange: { committed in
+                        manager.updateRemoteText(committed)
+                    },
+                    onSubmit: {
                         keyboardText = ""
                         showingKeyboard = false
                         manager.resetTextInputState()
                     }
+                )
+                .frame(height: 18)
+                .padding(.vertical, 8)
+                .padding(.horizontal, 12)
+                .background(Capsule().fill(Color(nsColor: DS.Colors.muted)))
+                .padding(.horizontal, 8)
+                .padding(.top, 8)
             }
         }
         .padding(.horizontal, padding)

@@ -172,16 +172,34 @@ enum BinaryPlist {
     // MARK: - Object encoders
 
     private static func encodeString(_ s: String) -> Data {
-        let utf8 = Array(s.utf8)
-        var result = Data()
-        if utf8.count < 15 {
-            result.append(0x50 | UInt8(utf8.count))
+        if s.allSatisfy(\.isASCII) {
+            // ASCII string: type 0x5x
+            let utf8 = Array(s.utf8)
+            var result = Data()
+            if utf8.count < 15 {
+                result.append(0x50 | UInt8(utf8.count))
+            } else {
+                result.append(0x5F)
+                result.append(contentsOf: encodeInt(utf8.count))
+            }
+            result.append(contentsOf: utf8)
+            return result
         } else {
-            result.append(0x5F)
-            result.append(contentsOf: encodeInt(utf8.count))
+            // Non-ASCII string: type 0x6x, UTF-16BE (matches Apple's binary plist spec)
+            let utf16 = Array(s.utf16)
+            var result = Data()
+            if utf16.count < 15 {
+                result.append(0x60 | UInt8(utf16.count))
+            } else {
+                result.append(0x6F)
+                result.append(contentsOf: encodeInt(utf16.count))
+            }
+            for unit in utf16 {
+                result.append(UInt8(unit >> 8))
+                result.append(UInt8(unit & 0xFF))
+            }
+            return result
         }
-        result.append(contentsOf: utf8)
-        return result
     }
 
     private static func encodeInt(_ n: Int) -> Data {

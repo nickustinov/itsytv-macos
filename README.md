@@ -168,7 +168,7 @@ xcodebuild test -scheme itsytvTests -destination "platform=macOS"
 
 ## Releasing
 
-1. Bump `CFBundleShortVersionString` and `CFBundleVersion` in `itsytv/Info.plist`
+1. Bump `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in `project.yml`
 2. Update `CHANGELOG.md`
 3. Build, sign, and package the DMG:
 
@@ -179,24 +179,20 @@ bash scripts/build-release.sh
 4. Notarize and staple:
 
 ```bash
-xcrun notarytool submit dist/itsytv-<VERSION>.dmg \
+xcrun notarytool submit dist/Itsytv-<VERSION>.dmg \
     --apple-id <APPLE_ID> --team-id <TEAM_ID> \
     --password <APP_SPECIFIC_PASSWORD> --wait
-xcrun stapler staple dist/itsytv-<VERSION>.dmg
+xcrun stapler staple dist/Itsytv-<VERSION>.dmg
 ```
 
 5. Create the GitHub release:
 
 ```bash
-gh release create v<VERSION> dist/itsytv-<VERSION>.dmg \
+gh release create v<VERSION> dist/Itsytv-<VERSION>.dmg \
     --title "v<VERSION>" --notes "Release notes here"
 ```
 
-6. Update the Homebrew cask:
-
-```bash
-brew bump-cask-pr itsytv --version <VERSION>
-```
+6. **Homebrew cask** – itsytv is in the official [homebrew-cask](https://formulae.brew.sh/cask/itsytv) repository with autobump enabled. BrewTestBot automatically detects new GitHub releases and opens a PR within ~3 hours. No manual action needed.
 
 ## License
 

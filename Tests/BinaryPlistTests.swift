@@ -147,6 +147,80 @@ final class BinaryPlistTests: XCTestCase {
         XCTAssertEqual(arr, ["alpha", "beta"])
     }
 
+    // MARK: - Non-ASCII strings (UTF-16BE encoding)
+
+    func testKoreanStringRoundtrip() throws {
+        let korean = "한글테스트"
+        let output = BinaryPlist.writeArchive(
+            archiver: "NSKeyedArchiver",
+            top: [("root", .uid(1))],
+            objects: [.string("$null"), .string(korean)]
+        )
+
+        let plist = try PropertyListSerialization.propertyList(
+            from: output,
+            options: [],
+            format: nil
+        )
+        let dict = try XCTUnwrap(plist as? [String: Any])
+        let objects = try XCTUnwrap(dict["$objects"] as? [Any])
+        XCTAssertEqual(objects[1] as? String, korean)
+    }
+
+    func testMixedASCIIAndUnicodeStringRoundtrip() throws {
+        let mixed = "Hello 세계!"
+        let output = BinaryPlist.writeArchive(
+            archiver: "NSKeyedArchiver",
+            top: [("root", .uid(1))],
+            objects: [.string("$null"), .string(mixed)]
+        )
+
+        let plist = try PropertyListSerialization.propertyList(
+            from: output,
+            options: [],
+            format: nil
+        )
+        let dict = try XCTUnwrap(plist as? [String: Any])
+        let objects = try XCTUnwrap(dict["$objects"] as? [Any])
+        XCTAssertEqual(objects[1] as? String, mixed)
+    }
+
+    func testEmojiStringRoundtrip() throws {
+        let emoji = "Hello 😀🎉"
+        let output = BinaryPlist.writeArchive(
+            archiver: "NSKeyedArchiver",
+            top: [("root", .uid(1))],
+            objects: [.string("$null"), .string(emoji)]
+        )
+
+        let plist = try PropertyListSerialization.propertyList(
+            from: output,
+            options: [],
+            format: nil
+        )
+        let dict = try XCTUnwrap(plist as? [String: Any])
+        let objects = try XCTUnwrap(dict["$objects"] as? [Any])
+        XCTAssertEqual(objects[1] as? String, emoji)
+    }
+
+    func testJapaneseStringRoundtrip() throws {
+        let japanese = "日本語テスト"
+        let output = BinaryPlist.writeArchive(
+            archiver: "NSKeyedArchiver",
+            top: [("root", .uid(1))],
+            objects: [.string("$null"), .string(japanese)]
+        )
+
+        let plist = try PropertyListSerialization.propertyList(
+            from: output,
+            options: [],
+            format: nil
+        )
+        let dict = try XCTUnwrap(plist as? [String: Any])
+        let objects = try XCTUnwrap(dict["$objects"] as? [Any])
+        XCTAssertEqual(objects[1] as? String, japanese)
+    }
+
     // MARK: - Large string (>14 chars triggers extended length)
 
     func testLongStringEncoding() throws {
