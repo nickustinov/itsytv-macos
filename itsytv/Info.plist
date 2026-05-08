@@ -24,6 +24,8 @@
 	<string>public.app-category.entertainment</string>
 	<key>LSUIElement</key>
 	<true/>
+	<key>NSAppleScriptEnabled</key>
+	<true/>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>itsytv needs local network access to discover and control Apple TV devices on your network.</string>
 	<key>NSBonjourServices</key>
@@ -31,5 +33,7 @@
 		<string>_companion-link._tcp</string>
 		<string>_mediaremotetv._tcp</string>
 	</array>
+	<key>OSAScriptingDefinition</key>
+	<string>itsytv.sdef</string>
 </dict>
 </plist>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE dictionary SYSTEM "file://localhost/System/Library/DTDs/sdef.dtd">
+<dictionary title="itsytv Terminology">
+    <suite name="itsytv Suite" code="iTSv" description="Control the connected Apple TV.">
+        <command name="pause" code="iTSvpaus"
+                 description="Pause playback on the connected Apple TV. No-op if nothing is currently playing.">
+            <cocoa class="ITSPauseScriptCommand"/>
+        </command>
+        <command name="play" code="iTSvplay"
+                 description="Resume playback on the connected Apple TV. No-op if nothing is loaded or it is already playing.">
+            <cocoa class="ITSPlayScriptCommand"/>
+        </command>
+    </suite>
+</dictionary>
