@@ -64,10 +64,11 @@ If you send a pairing request but no PIN appears on your TV screen, your Apple T
 
 1. Open **Settings > AirPlay and Apple Home** on your Apple TV
 2. Set **Allow access** to **Anyone on the same network**
-3. Go to **Settings > General > Restrictions**
-4. Set both **AirPlay Settings** and **Remote App Pairing** to **Allow**
+3. Set **Require Password** to **Off** (after pairing is completed, Require Password can be turned back on)
+4. Go to **Settings > General > Restrictions**
+5. Set both **AirPlay Settings** and **Remote App Pairing** to **Allow**
 
-This setting needs to stay on this value for itsytv to maintain a connection to your Apple TV.
+The settings in step 2 and 5 need to stay on this value for itsytv to maintain a connection to your Apple TV.
 
 ### Remote disappears after a few seconds
 
