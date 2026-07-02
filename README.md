@@ -7,7 +7,7 @@
 [![macOS 14+](https://img.shields.io/badge/macOS-14%2B-brightgreen.svg)](https://www.apple.com/macos/sonoma/)
 [![Homebrew](https://img.shields.io/badge/homebrew-cask-yellow.svg)](https://formulae.brew.sh/cask/itsytv)
 
-A native macOS menu bar app for controlling your Apple TV.
+A native macOS menu bar app for controlling your Apple TV. macOS has no built-in Apple TV remote – Itsytv fills the gap: d-pad, keyboard navigation, live text input, now playing, and an app launcher, speaking the same local-network protocol the Siri Remote uses. Free and open source (MIT), installable via Homebrew.
 
 [![Download on the Mac App Store](https://developer.apple.com/app-store/marketing/guidelines/images/badge-download-on-the-mac-app-store.svg)](https://apps.apple.com/app/itsytv/id6759216148)
 
@@ -41,6 +41,24 @@ Itsytv is now available on iOS with the same core experience plus features desig
 - **Per-device panel position** – remembers where you placed the remote for each Apple TV
 - **Launch at login** – optional auto-start from the menu bar
 - **Unpair** – remove pairing credentials from the panel menu
+- **AppleScript & Shortcuts** – script play/pause from anything that runs AppleScript
+
+## AppleScript and Shortcuts automation
+
+Itsytv exposes AppleScript commands, so the Apple TV becomes scriptable from Shortcuts, Keyboard Maestro, Hammerspoon, Raycast, or a plain shell:
+
+```bash
+osascript -e 'tell application "itsytv" to pause'
+osascript -e 'tell application "itsytv" to play'
+```
+
+Both commands are no-ops when nothing is playing, so they are safe to fire blindly. Some ideas:
+
+- A Shortcuts automation that pauses the Apple TV when a calendar meeting starts (Run AppleScript action)
+- A Hammerspoon or Keyboard Maestro hotkey that toggles playback without touching a remote
+- A cron job or `at` timer that pauses playback at bedtime
+
+There is also a Shortcuts action to open the remote panel for a specific Apple TV – handy on a Stream Deck.
 
 ## Perfect companion to Itsyhome
 
@@ -79,6 +97,25 @@ If the remote panel closes on its own shortly after connecting, your Apple TV's 
 Itsytv is a menu bar app – it lives in the top-right area of your screen as a small TV icon, not in the Dock. On MacBooks with a notch, macOS hides menu bar icons that don't fit behind the notch – silently, with no warning. If your menu bar is crowded, the itsytv icon may be there but invisible.
 
 To fix this, hold **Cmd** and drag any icons you don't need off the menu bar. Once itsytv appears, Cmd-drag it to the right so it stays visible.
+
+## FAQ
+
+**Is it free?**
+On the Mac, yes – free via Homebrew or the DMG, MIT-licensed open source. The [Mac App Store version](https://apps.apple.com/app/itsytv/id6759216148) is a one-time $4.99 universal purchase that also covers iPhone and iPad. No subscription, ads, or in-app purchases anywhere.
+
+**Which Apple TVs work?**
+Apple TV 4th generation or later running tvOS 15+, on the same local network as the Mac. Older Apple TVs don't support the protocol.
+
+**Do I need the physical Siri Remote to pair?**
+No. The Apple TV shows a four-digit PIN on the TV screen and you type it into Itsytv. Credentials are stored in the macOS Keychain and the connection is end-to-end encrypted.
+
+**How is this different from other Apple TV remote apps?**
+Itsytv speaks Apple's native MediaRemote/Companion protocol over the local network – the same one the Siri Remote uses – so input is instant, with no cloud service or polling in between. Most remote apps in this category charge a subscription; Itsytv doesn't, and on the Mac you can read the source to verify what it does.
+
+**Can it change the TV volume?**
+Yes, when the Apple TV controls volume over HDMI-CEC (Settings → Remotes and Devices → Volume Control on the Apple TV). Learned infrared volume codes only work from the physical remote, since Macs have no IR blaster.
+
+More guides: [control Apple TV from your Mac](https://itsytv.app/en/guides/control-apple-tv-from-mac) · [Apple TV pairing troubleshooting](https://itsytv.app/en/apple-tv-pairing) · [all Apple TV remote guides](https://itsytv.app/en/guides)
 
 ## Architecture
 
