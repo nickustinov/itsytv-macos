@@ -98,7 +98,7 @@ struct RemoteControlView: View {
                     ZStack {
                         // Remote always rendered (hidden when on apps to keep size)
                         VStack(spacing: 10) {
-                            RemoteTabContent()
+                            RemoteTabContent(swipeEnabled: selectedTab == .remote)
                             NowPlayingBar()
                         }
                         .opacity(selectedTab == .remote ? 1 : 0)
@@ -373,6 +373,7 @@ struct NowPlayingProgress: View {
 
 struct RemoteTabContent: View {
     @Environment(AppleTVManager.self) private var manager
+    let swipeEnabled: Bool
     private let padding: CGFloat = 8
     private let buttonSize: CGFloat = 60
     private let buttonGap: CGFloat = 12
@@ -382,7 +383,11 @@ struct RemoteTabContent: View {
 
         VStack(spacing: 4) {
             // D-pad
-            DPadView(onPress: { button, action in manager.pressButton(button, action: action) }, size: dpadSize)
+            DPadView(
+                onPress: { button, action in manager.pressButton(button, action: action) },
+                size: dpadSize,
+                swipeEnabled: swipeEnabled
+            )
                 .padding(.top, 15)
 
             // Buttons matching Apple TV remote layout
@@ -712,12 +717,14 @@ private class RemoteButtonGestureNSView: NSView {
 /// rather than the responder chain, so it never intercepts the button clicks
 /// layered beneath it; a swipe is only claimed while the cursor is over the pad.
 private struct DPadSwipeCapture: NSViewRepresentable {
+    let isEnabled: Bool
     let onBegan: () -> Void
     let onChanged: (CGPoint) -> Void
     let onEnded: (CGPoint, CGPoint) -> Void
 
     func makeNSView(context: Context) -> DPadSwipeCaptureView {
         let view = DPadSwipeCaptureView()
+        view.isEnabled = isEnabled
         view.onBegan = onBegan
         view.onChanged = onChanged
         view.onEnded = onEnded
@@ -725,6 +732,7 @@ private struct DPadSwipeCapture: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: DPadSwipeCaptureView, context: Context) {
+        nsView.isEnabled = isEnabled
         nsView.onBegan = onBegan
         nsView.onChanged = onChanged
         nsView.onEnded = onEnded
@@ -736,6 +744,11 @@ private struct DPadSwipeCapture: NSViewRepresentable {
 }
 
 private final class DPadSwipeCaptureView: NSView {
+    var isEnabled = true {
+        didSet {
+            if !isEnabled { end() }
+        }
+    }
     var onBegan: (() -> Void)?
     var onChanged: ((CGPoint) -> Void)?
     var onEnded: ((CGPoint, CGPoint) -> Void)?
@@ -787,6 +800,7 @@ private final class DPadSwipeCaptureView: NSView {
     private func handle(_ event: NSEvent) -> NSEvent? {
         // Only precise gestures (trackpad / Magic Mouse) act as swipes; a
         // classic notched wheel keeps its normal behaviour.
+        guard isEnabled else { return event }
         guard event.hasPreciseScrollingDeltas else { return event }
         guard active || cursorIsOverDPad(event) else { return event }
 
@@ -846,6 +860,7 @@ struct DPadView: View {
     @Environment(AppleTVManager.self) private var manager
     let onPress: (CompanionButton, InputAction) -> Void
     let size: CGFloat
+    let swipeEnabled: Bool
     @State private var blinkOpacity: Double = 0
 
     private static let dpadButtons: Set<CompanionButton> = [.up, .down, .left, .right, .select]
@@ -899,6 +914,7 @@ struct DPadView: View {
         // matching iOS. Hit testing stays off so button clicks pass through.
         .overlay(
             DPadSwipeCapture(
+                isEnabled: swipeEnabled,
                 onBegan: { manager.touchBegan(referenceSize: CGSize(width: size * 1.5, height: size * 1.5)) },
                 onChanged: { manager.touchMoved(translation: $0) },
                 onEnded: { manager.touchEnded(translation: $0, velocity: $1) }
