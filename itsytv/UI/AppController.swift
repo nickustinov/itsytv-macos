@@ -434,12 +434,21 @@ final class AppController: NSObject, NSMenuDelegate {
         hostingView.translatesAutoresizingMaskIntoConstraints = false
 
         // Vibrancy view as the contentView itself
+        let cornerRadius: CGFloat = 16
+        let edgeLength = 2.0 * cornerRadius + 1.0
+        let maskImage = NSImage(size: NSSize(width: edgeLength, height: edgeLength), flipped: false) { rect in
+            let bezierPath = NSBezierPath(roundedRect: rect, xRadius: cornerRadius, yRadius: cornerRadius)
+            NSColor.black.set()
+            bezierPath.fill()
+            return true
+        }
+        maskImage.capInsets = NSEdgeInsets(top: cornerRadius, left: cornerRadius, bottom: cornerRadius, right: cornerRadius)
+        maskImage.resizingMode = .stretch
+        
         let vibrancy = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: 176, height: 400))
         vibrancy.material = .menu
         vibrancy.state = .active
-        vibrancy.wantsLayer = true
-        vibrancy.layer?.cornerRadius = 10
-        vibrancy.layer?.masksToBounds = true
+        vibrancy.maskImage = maskImage
         vibrancy.addSubview(hostingView)
 
         NSLayoutConstraint.activate([
