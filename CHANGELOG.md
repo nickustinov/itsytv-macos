@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.1
+
+- New app icon matching the new Apple TV remote design
+- Fix white corner artifacts on the remote window against bright backgrounds and match the macOS 27 corner radius (thanks @AlexPygin)
+- Fix two-finger swipes still being sent to the Apple TV while the Apps tab is open (#57)
+
 ## 1.6.0
 
 - Add swipe over the D-pad to navigate, via a two-finger trackpad swipe or a Magic Mouse swipe, matching the iOS app; direction follows your finger regardless of the natural scrolling setting
