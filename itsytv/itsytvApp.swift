@@ -22,6 +22,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var appController: AppController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        #if DEBUG
+        ItsytvCoreLog.verbose = true
+        #endif
         Self.shared = self
         appController = AppController(manager: manager, iconLoader: iconLoader)
         ItsyTVShortcuts.updateAppShortcutParameters()

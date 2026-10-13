@@ -147,6 +147,7 @@ final class AppController: NSObject, NSMenuDelegate {
     private var lastKnownStatus: ConnectionStatus = .disconnected
     private var lastKnownDeviceCount: Int = 0
     private var hasPairedDevice = false
+    private var pairingItem: PairingMenuItem?
 
     private func handleStateChange() {
         let currentStatus = manager.connectionStatus
@@ -163,6 +164,7 @@ final class AppController: NSObject, NSMenuDelegate {
         guard currentStatus != lastKnownStatus || currentDeviceCount != lastKnownDeviceCount else { return }
         lastKnownStatus = currentStatus
         lastKnownDeviceCount = currentDeviceCount
+        if currentStatus != .pairing { pairingItem = nil }
 
         switch currentStatus {
         case .disconnected:
@@ -208,7 +210,10 @@ final class AppController: NSObject, NSMenuDelegate {
             item.isEnabled = false
             menu.addItem(item)
         case .pairing:
-            let pairing = PairingMenuItem(manager: manager)
+            // Reused across menu reopens so typed digits and the post-submit
+            // spinner survive – tvOS 27 can take a while to confirm the PIN.
+            let pairing = pairingItem ?? PairingMenuItem(manager: manager)
+            pairingItem = pairing
             menu.addItem(pairing)
         case .error(let message):
             let errorItem = NSMenuItem(title: message, action: nil, keyEquivalent: "")
@@ -952,6 +957,9 @@ final class PairingMenuItem: NSMenuItem {
     private var digitLabels: [NSTextField] = []
     private var digitBoxes: [NSView] = []
     private weak var containerView: PairingContainerView?
+    private weak var titleLabel: NSTextField?
+    private weak var spinner: NSProgressIndicator?
+    private var isSubmitted = false
 
     init(manager: AppleTVManager) {
         self.manager = manager
@@ -997,6 +1005,7 @@ final class PairingMenuItem: NSMenuItem {
         title.font = DS.Typography.labelMedium
         title.textColor = DS.Colors.foreground
         container.addSubview(title)
+        titleLabel = title
 
         // Close (X) button — top right
         let closeX = width - padding - closeButtonSize
@@ -1034,23 +1043,44 @@ final class PairingMenuItem: NSMenuItem {
             digitLabels.append(label)
         }
 
+        let spinnerSize: CGFloat = 24
+        let spinner = NSProgressIndicator(frame: NSRect(
+            x: (width - spinnerSize) / 2,
+            y: digitsY + (digitBoxSize - spinnerSize) / 2,
+            width: spinnerSize,
+            height: spinnerSize
+        ))
+        spinner.style = .spinning
+        spinner.isDisplayedWhenStopped = false
+        container.addSubview(spinner)
+        self.spinner = spinner
+
         updateDigitDisplay()
         return container
     }
 
     func enterDigit(_ digit: Int) {
-        guard currentIndex < 4 else { return }
+        guard !isSubmitted, currentIndex < 4 else { return }
         digits[currentIndex] = digit
         updateDigitDisplay()
         if currentIndex == 4 {
+            isSubmitted = true
+            showSubmitted()
             let pin = digits.compactMap { $0 }.map(String.init).joined()
             manager.submitPIN(pin)
         }
     }
 
+    /// Lock the PIN while the Apple TV verifies it, which can take a while.
+    private func showSubmitted() {
+        titleLabel?.stringValue = "Pairing with Apple TV…"
+        digitBoxes.forEach { $0.alphaValue = 0.3 }
+        spinner?.startAnimation(nil)
+    }
+
     func backspace() {
         let idx = currentIndex - 1
-        guard idx >= 0 else { return }
+        guard !isSubmitted, idx >= 0 else { return }
         digits[idx] = nil
         updateDigitDisplay()
     }

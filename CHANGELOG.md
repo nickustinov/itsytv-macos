@@ -5,6 +5,7 @@
 - New app icon matching the new Apple TV remote design
 - Fix white corner artifacts on the remote window against bright backgrounds and match the macOS 27 corner radius (thanks @AlexPygin)
 - Fix two-finger swipes still being sent to the Apple TV while the Apps tab is open (#57)
+- Fix pairing hanging for ~30 seconds after entering the PIN on tvOS 27; the PIN entry now shows a spinner while the Apple TV confirms and keeps its state when the menu is reopened
 
 ## 1.6.0
 
