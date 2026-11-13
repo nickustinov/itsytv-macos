@@ -65,9 +65,6 @@ struct WelcomeView: View {
 }
 
 enum WelcomeWindow {
-    /// System Settings → Menu Bar ("Allow in the Menu Bar"), checked on macOS 27.
-    private static let menuBarSettings = URL(string: "x-apple.systempreferences:com.apple.ControlCenter-Settings.extension")!
-
     private static var window: NSWindow?
     private static var occlusionObserver: NSObjectProtocol?
 
@@ -87,7 +84,7 @@ enum WelcomeWindow {
             onMenuBarSettings: {
                 // Behind System Settings from here on, so it doesn't cover the switch.
                 window.level = .normal
-                NSWorkspace.shared.open(menuBarSettings)
+                SystemSettingsPane.menuBar.open()
             },
             onShowInDock: { DockIcon.set(true); close(); showDevices() }
         ))

@@ -1113,6 +1113,37 @@ struct ErrorView: View {
     }
 }
 
+/// macOS blocks Itsytv's connection. The manager keeps it waiting and goes on by itself once the
+/// user turns Itsytv on under Local Network.
+struct LocalNetworkDeniedView: View {
+    @Environment(AppleTVManager.self) private var manager
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.title)
+                .foregroundStyle(.orange)
+            Text("Local network access is off")
+                .font(.subheadline)
+                .multilineTextAlignment(.center)
+            Text("Turn on Itsytv in System Settings → Privacy & Security → Local Network.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            Button("Open Privacy & Security") {
+                SystemSettingsPane.privacySecurity.open()
+            }
+            .buttonStyle(.borderedProminent)
+            Button("Cancel") {
+                manager.disconnect()
+            }
+            .font(.caption)
+            .buttonStyle(.plain)
+        }
+        .padding(24)
+    }
+}
+
 struct SettingsView: View {
     @Environment(AppleTVManager.self) private var manager
     @AppStorage(DockIcon.key) private var showInDock = false

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.7.1
+
+- Fix pairing waiting forever on a PIN the Apple TV never showed when macOS blocks Itsytv's local network access – Itsytv now says local network access is off and opens Privacy & Security, and goes on by itself once Itsytv is turned on under Local Network. The PIN entry now opens only once the Apple TV shows the PIN (#64, thanks @maxmadr)
+
 ## 1.7.0
 
 - Add a welcome on first launch – Itsytv lives in the menu bar with no Dock icon or window, so when a full menu bar pushed its icon behind the notch, or the icon was turned off in System Settings → Menu Bar, a new user saw nothing at all. The welcome shows where to find it; while the icon is hidden it offers a lasting way in – Menu Bar settings, or keeping Itsytv in the Dock – and comes back on later launches until one of them works
