@@ -32,7 +32,7 @@ Itsytv is now available on iOS with the same core experience plus features desig
 
 - **Menu bar remote** – control your Apple TV from a compact floating panel
 - **D-pad and buttons** – circular d-pad with directional navigation, select, home, menu/back, play/pause
-- **Keyboard navigation** – arrow keys, Return, Backspace, Escape, Space mapped to remote buttons
+- **Keyboard navigation** – arrow keys, Return, Backspace, Escape, Space mapped to remote buttons, held like the Siri Remote (hold Escape for the Home screen). Optional key hints on the remote, and a Keyboard shortcuts window to try and change every key
 - **Text input** – type directly into Apple TV text fields with a live keyboard
 - **Now playing** – artwork, title, artist, progress bar, and playback controls
 - **App launcher** – grid of installed apps with icons fetched from the App Store; drag to reorder
@@ -127,7 +127,12 @@ itsytv-macos/
 ├── UI/
 │   ├── AppController.swift      # NSStatusItem, menu, floating panel, keyboard monitor
 │   ├── MenuBarView.swift        # SwiftUI views: remote, now playing, app grid
+│   ├── RemoteShortcuts.swift    # Shortcut hints on the remote, key → Apple TV button
+│   ├── ShortcutsWindow.swift    # Keyboard shortcuts window: try and change every key
 │   └── AppIconLoader.swift      # App icons from iTunes Lookup API
+├── Shortcuts/
+│   ├── RemoteShortcut.swift     # The remote's shortcut table and custom keys
+│   └── ShortcutKeys.swift       # A key with modifiers, and how it's drawn
 ├── DesignSystem/
 │   ├── DesignSystem.swift       # Colours, typography, spacing, sizing tokens
 │   └── HighlightingMenuItemView.swift

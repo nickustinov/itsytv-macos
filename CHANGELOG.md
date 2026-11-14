@@ -1,7 +1,13 @@
 # Changelog
 
-## 1.7.1
+## 1.8.0
 
+- Hold keys like the buttons on the Siri Remote – holding esc goes to the Home screen, ⌫ opens Control Center and ↩ the context menu. A held key used to send a click for every key repeat, so a hold never reached the Apple TV (thanks @Lemelson)
+- Add keyboard shortcut hints – "Show shortcut hints" in the remote's ⋯ menu labels every control with its key (thanks @Lemelson)
+- Add a Keyboard shortcuts window (⋯ → "Keyboard shortcuts…") – a copy of the remote with every key, to try them without sending anything to the Apple TV. Click a row's keys to change them; keys already used by another control swap, and each row or all of them can go back to the defaults (thanks @Lemelson)
+- Add "Show artwork" to the ⋯ menu for a shorter remote without the artwork (thanks @Lemelson)
+- Bigger close button on the remote, with a tooltip (thanks @Lemelson)
+- Keys now only control the Apple TV while the remote is the active window – typing in Settings no longer reaches the TV, and ⌘W there no longer disconnects. Shortcuts now need their exact modifiers: ⇧ with an arrow no longer moves (thanks @Lemelson)
 - Fix pairing waiting forever on a PIN the Apple TV never showed when macOS blocks Itsytv's local network access – Itsytv now says local network access is off and opens Privacy & Security, and goes on by itself once Itsytv is turned on under Local Network. The PIN entry now opens only once the Apple TV shows the PIN (#64, thanks @maxmadr)
 
 ## 1.7.0

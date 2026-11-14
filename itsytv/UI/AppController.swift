@@ -18,6 +18,7 @@ final class AppController: NSObject, NSMenuDelegate {
     private var panel: NSPanel?
     private var panelDeviceID: String?
     private var keyboardMonitor: Any?
+    private var keyHold: KeyHold?
     private var alwaysOnTopObserver: NSObjectProtocol?
 
     init(manager: AppleTVManager, iconLoader: AppIconLoader) {
@@ -660,10 +661,11 @@ final class AppController: NSObject, NSMenuDelegate {
 
     private func installKeyboardMonitor() {
         removeKeyboardMonitor()
-        keyboardMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard let self, self.panel?.isVisible == true else { return event }
-            if self.handleRemoteKeyDown(event) { return nil }
-            return event
+        keyboardMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp]) { [weak self] event in
+            // Only keys typed into the remote itself – not into the shortcuts window or Settings.
+            guard let self, let panel = self.panel, panel.isVisible, event.window === panel else { return event }
+            let handled = event.type == .keyUp ? self.handleRemoteKeyUp(event) : self.handleRemoteKeyDown(event)
+            return handled ? nil : event
         }
     }
 
@@ -672,66 +674,94 @@ final class AppController: NSObject, NSMenuDelegate {
             NSEvent.removeMonitor(monitor)
             keyboardMonitor = nil
         }
+        releaseHeldKey(reason: "monitor removed")
+    }
+
+    // MARK: - Held keys
+
+    /// Back, TV, Select and Play/Pause are held for real, like on the Siri Remote:
+    /// key down sends "button down" to the Apple TV, key up sends "button up", and
+    /// tvOS itself decides between a click and a hold (hold Back → Home screen,
+    /// hold TV → Control Center, hold Select → context menu). macOS key repeat is
+    /// swallowed so a held key never turns into a burst of clicks.
+    private struct KeyHold {
+        let keyCode: UInt16
+        let button: CompanionButton
+        let start: Date
+        let watchdog: Timer
+    }
+
+    /// Never leave a button stuck down on the Apple TV if the key-up gets lost.
+    private static let maxKeyHold: TimeInterval = 8
+
+    private func beginKeyHold(_ button: CompanionButton, keyCode: UInt16) {
+        releaseHeldKey(reason: "new key")
+        let watchdog = Timer.scheduledTimer(withTimeInterval: Self.maxKeyHold, repeats: false) { [weak self] _ in
+            self?.releaseHeldKey(reason: "watchdog")
+        }
+        keyHold = KeyHold(keyCode: keyCode, button: button, start: Date(), watchdog: watchdog)
+        log.info("key: \(String(describing: button), privacy: .public) down")
+        manager.pressDown(button)
+    }
+
+    private func releaseHeldKey(reason: String) {
+        guard let hold = keyHold else { return }
+        keyHold = nil
+        hold.watchdog.invalidate()
+        let held = Date().timeIntervalSince(hold.start)
+        log.info("key: \(String(describing: hold.button), privacy: .public) up after \(held, format: .fixed(precision: 2), privacy: .public)s (\(reason, privacy: .public))")
+        manager.release(hold.button)
+    }
+
+    private func handleRemoteKeyUp(_ event: NSEvent) -> Bool {
+        guard let hold = keyHold, hold.keyCode == event.keyCode else { return false }
+        releaseHeldKey(reason: "key up")
+        return true
     }
 
     private func handleRemoteKeyDown(_ event: NSEvent) -> Bool {
-        // Cmd shortcuts work even when text input is focused
-        if event.modifierFlags.contains(.command) {
-            switch event.keyCode {
-            case 13, 4: // Cmd+W, Cmd+H
-                manager.disconnect()
-                return true
-            case 40: // Cmd+K
-                manager.keyboardToggleCounter &+= 1
-                manager.triggerKeyboardBlink(.siri)
-                return true
-            case 3: // Cmd+F
-                let key = "showAppsSearch"
-                UserDefaults.standard.set(!UserDefaults.standard.bool(forKey: key), forKey: key)
-                return true
-            default:
-                break
+        guard let shortcut = RemoteShortcut.match(event) else { return false }
+        // ⌘ shortcuts work even when text input is focused; plain keys go to the field
+        if !shortcut.usesCommand && isTextInputFocused { return false }
+
+        switch shortcut {
+        case .close:
+            manager.disconnect()
+        case .keyboard:
+            manager.keyboardToggleCounter &+= 1
+            manager.triggerKeyboardBlink(.siri)
+        case .appSearch:
+            let key = "showAppsSearch"
+            UserDefaults.standard.set(!UserDefaults.standard.bool(forKey: key), forKey: key)
+        case .mute:
+            manager.toggleMute()
+            manager.triggerKeyboardBlink(.siri)
+        default:
+            guard let button = shortcut.companionButton else { return false }
+            if shortcut.hasHoldAction {
+                if event.isARepeat {
+                    log.debug("key: repeat swallowed")
+                } else {
+                    beginKeyHold(button, keyCode: event.keyCode)
+                }
+            } else {
+                log.info("key: \(String(describing: button), privacy: .public) click")
+                // Arrows and volume keep key repeat: holding them scrolls / keeps changing volume.
+                manager.pressButton(button)
+                manager.triggerKeyboardBlink(button)
             }
         }
-
-        // Cmd+Shift shortcuts
-        if event.modifierFlags.contains([.command, .shift]) {
-            switch event.keyCode {
-            case 46: // Cmd+Shift+M
-                manager.toggleMute()
-                manager.triggerKeyboardBlink(.siri)
-                return true
-            default:
-                break
-            }
-        }
-
-        // Ignore when any text input is focused (field editor, NSTextField, or SwiftUI text)
-        if let responder = panel?.firstResponder {
-            var r: NSResponder? = responder
-            while let current = r {
-                if current is NSText || current is NSTextField { return false }
-                r = current.nextResponder
-            }
-        }
-
-        let button: CompanionButton? = switch event.keyCode {
-        case 126: .up
-        case 125: .down
-        case 123: .left
-        case 124: .right
-        case 36:  .select
-        case 51:  .home
-        case 53:  .menu
-        case 49:  .playPause
-        case 24:  .volumeUp
-        case 27:  .volumeDown
-        default:  nil
-        }
-        guard let button else { return false }
-        manager.pressButton(button)
-        manager.triggerKeyboardBlink(button)
         return true
+    }
+
+    /// Field editor, NSTextField or SwiftUI text in the panel has focus.
+    private var isTextInputFocused: Bool {
+        var responder: NSResponder? = panel?.firstResponder
+        while let current = responder {
+            if current is NSText || current is NSTextField { return true }
+            responder = current.nextResponder
+        }
+        return false
     }
 
     // MARK: - NSMenuDelegate
@@ -790,6 +820,8 @@ struct PanelMenuButton: View {
     let onUnpair: () -> Void
     @AppStorage("alwaysOnTop") private var alwaysOnTop = true
     @AppStorage("showAppsSearch") private var showAppsSearch = false
+    @AppStorage("showShortcutHints") private var showShortcutHints = false
+    @AppStorage("showArtwork") private var showArtwork = true
     @State private var showingHotkeyRecorder = false
     @State private var currentHotkey: ShortcutKeys?
 
@@ -798,6 +830,12 @@ struct PanelMenuButton: View {
             Toggle("Always on top", isOn: $alwaysOnTop)
             Toggle("Show app search", isOn: $showAppsSearch)
                 .keyboardShortcut("f", modifiers: .command)
+            Toggle("Show artwork", isOn: $showArtwork)
+            Divider()
+            Toggle("Show shortcut hints", isOn: $showShortcutHints)
+            Button("Keyboard shortcuts…") {
+                ShortcutsWindow.show(beside: NSApp.keyWindow)
+            }
             Divider()
             Button(hotkeyButtonTitle) {
                 showingHotkeyRecorder = true
@@ -975,14 +1013,16 @@ struct PanelCloseButton: View {
         Button(action: action) {
             ZStack {
                 Circle()
-                    .fill(Color.secondary.opacity(0.15))
-                    .frame(width: 20, height: 20)
+                    .fill(Color.secondary.opacity(0.2))
+                    .frame(width: 28, height: 28)
                 Image(systemName: "xmark")
-                    .font(.system(size: 9, weight: .bold))
+                    .font(.system(size: 12, weight: .bold))
                     .foregroundStyle(.secondary)
             }
+            .contentShape(Circle())
         }
         .buttonStyle(.plain)
+        .help("Close remote (⌘W)")
     }
 }
 
@@ -1009,6 +1049,11 @@ struct PanelContentView: View {
 // MARK: - NSWindowDelegate
 
 extension AppController: NSWindowDelegate {
+    func windowDidResignKey(_ notification: Notification) {
+        // Key-up goes to whichever window is key now – let go of the button.
+        if (notification.object as? NSPanel) === panel { releaseHeldKey(reason: "panel lost focus") }
+    }
+
     func windowWillClose(_ notification: Notification) {
         if (notification.object as? NSPanel) === panel {
             savePanelPosition()

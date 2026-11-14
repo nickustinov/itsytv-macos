@@ -137,6 +137,7 @@ struct RemoteControlView: View {
                                     .background(Circle().fill(Color.secondary.opacity(0.12)))
                             }
                             .buttonStyle(.plain)
+                            .shortcutHint(.keyboard, alignment: .leading, offset: CGSize(width: 28, height: 0))
 
                             Spacer()
 
@@ -213,6 +214,7 @@ struct RemoteControlView: View {
 
 struct NowPlayingBar: View {
     @Environment(AppleTVManager.self) private var manager
+    @AppStorage("showArtwork") private var showArtwork = true
 
     var body: some View {
         let mrp = manager.mrpManager
@@ -220,8 +222,10 @@ struct NowPlayingBar: View {
         let hasContent = np != nil
 
         VStack(spacing: 6) {
-            // Artwork — full width, square
-            if let data = np?.artworkData, let image = NSImage(data: data) {
+            // Artwork – full width, square (can be turned off in the … menu)
+            if !showArtwork {
+                EmptyView()
+            } else if let data = np?.artworkData, let image = NSImage(data: data) {
                 Color.clear
                     .frame(maxWidth: .infinity)
                     .frame(height: 160)
@@ -420,14 +424,14 @@ struct RemoteTabContent: View {
             VStack(spacing: buttonGap) {
                 // Row 1: Back + TV/Home
                 HStack(spacing: buttonGap) {
-                    RemoteCircleButton(imageName: "btnBack", button: .menu, shortcut: "Esc", size: buttonSize) { action in
+                    RemoteCircleButton(imageName: "btnBack", button: .menu, shortcut: .back, size: buttonSize) { action in
                         if action == .hold {
                             manager.pressButton(.home)
                         } else {
                             manager.pressButton(.menu, action: action)
                         }
                     }
-                    RemoteCircleButton(imageName: "btnHome", button: .home, shortcut: "⌫", size: buttonSize) { action in
+                    RemoteCircleButton(imageName: "btnHome", button: .home, shortcut: .home, size: buttonSize) { action in
                         manager.pressButton(.home, action: action)
                     }
                 }
@@ -435,10 +439,10 @@ struct RemoteTabContent: View {
                 // Rows 2-3: Play/Pause + Mute left, Volume pill right
                 HStack(alignment: .top, spacing: buttonGap) {
                     VStack(spacing: buttonGap) {
-                        RemoteCircleButton(imageName: "btnPlayPause", button: .playPause, shortcut: "Space", size: buttonSize) { action in
+                        RemoteCircleButton(imageName: "btnPlayPause", button: .playPause, shortcut: .playPause, size: buttonSize) { action in
                             manager.pressButton(.playPause, action: action)
                         }
-                        RemoteCircleButton(imageName: "btnMute", button: .siri, shortcut: "⌘⇧M", size: buttonSize) { action in
+                        RemoteCircleButton(imageName: "btnMute", button: .siri, shortcut: .mute, size: buttonSize) { action in
                             guard action == .click else { return }
                             manager.toggleMute()
                         }
@@ -911,22 +915,24 @@ struct DPadView: View {
             Circle()
                 .fill(Color(nsColor: DS.Colors.remoteButtonForeground).opacity(0.08))
                 .frame(width: size * 0.5, height: size * 0.5)
+                .overlay(Circle().fill(.white.opacity(manager.heldButton == .select ? 0.22 : 0)).allowsHitTesting(false))
                 .overlay(RemoteButtonGesture { action in press(.select, action) })
+                .shortcutHint(.select)
                 .help("Return")
 
             // Direction dots
             VStack {
-                DPadDot(shortcut: "↑") { action in press(.up, action) }
+                DPadDot(shortcut: .up) { action in press(.up, action) }
                 Spacer()
-                DPadDot(shortcut: "↓") { action in press(.down, action) }
+                DPadDot(shortcut: .down) { action in press(.down, action) }
             }
             .frame(height: size)
             .padding(.vertical, 12)
 
             HStack {
-                DPadDot(shortcut: "←") { action in press(.left, action) }
+                DPadDot(shortcut: .left) { action in press(.left, action) }
                 Spacer()
-                DPadDot(shortcut: "→") { action in press(.right, action) }
+                DPadDot(shortcut: .right) { action in press(.right, action) }
             }
             .frame(width: size)
             .padding(.horizontal, 12)
@@ -954,7 +960,7 @@ struct DPadView: View {
 }
 
 struct DPadDot: View {
-    let shortcut: String
+    let shortcut: RemoteShortcut
     let action: (InputAction) -> Void
 
     var body: some View {
@@ -963,7 +969,8 @@ struct DPadDot: View {
             .frame(width: 5, height: 5)
             .frame(width: 30, height: 30)
             .overlay(RemoteButtonGesture(onInput: action))
-            .help(shortcut)
+            .shortcutHint(shortcut)
+            .help(shortcut.label)
     }
 }
 
@@ -971,10 +978,13 @@ struct RemoteCircleButton: View {
     @Environment(AppleTVManager.self) private var manager
     let imageName: String
     let button: CompanionButton
-    let shortcut: String
+    let shortcut: RemoteShortcut
     let size: CGFloat
     let action: (InputAction) -> Void
     @State private var blinkOpacity: Double = 0
+
+    /// Its key is being held down on the keyboard.
+    private var isHeld: Bool { manager.heldButton == button }
 
     private func press(_ input: InputAction) {
         blink()
@@ -994,8 +1004,12 @@ struct RemoteCircleButton: View {
             .frame(width: size, height: size)
             .background(Circle().fill(Color(nsColor: DS.Colors.remoteButton)))
             .overlay(Circle().fill(.white.opacity(blinkOpacity)).allowsHitTesting(false))
+            .overlay(Circle().fill(.white.opacity(isHeld ? 0.22 : 0)).allowsHitTesting(false))
+            .scaleEffect(isHeld ? 0.94 : 1)
+            .animation(.easeOut(duration: 0.1), value: isHeld)
             .overlay(RemoteButtonGesture { input in press(input) })
-            .help(shortcut)
+            .shortcutHint(shortcut, alignment: .bottom, offset: CGSize(width: 0, height: -7))
+            .help(shortcut.label)
             .onChange(of: manager.keyboardBlinkCounter) { _, _ in
                 if manager.keyboardBlinkButton == button { blink() }
             }
@@ -1041,6 +1055,8 @@ struct VolumePill: View {
         .background(Capsule().fill(Color(nsColor: DS.Colors.remoteButton)))
         .overlay(Capsule().fill(.white.opacity(blinkOpacity)).allowsHitTesting(false))
         .clipShape(Capsule())
+        .shortcutHint(.volumeUp, alignment: .top, offset: CGSize(width: 0, height: 7))
+        .shortcutHint(.volumeDown, alignment: .bottom, offset: CGSize(width: 0, height: -7))
         .onChange(of: manager.keyboardBlinkCounter) { _, _ in
             if manager.keyboardBlinkButton == .volumeUp || manager.keyboardBlinkButton == .volumeDown {
                 blink()
