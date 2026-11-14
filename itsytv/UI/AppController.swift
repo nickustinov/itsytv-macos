@@ -50,7 +50,7 @@ final class AppController: NSObject, NSMenuDelegate {
         HotkeyManager.shared.reregisterAll()
         HotkeyManager.shared.onHotkeyPressed = { [weak self] deviceID in
             guard let self else { return }
-            if self.panel?.isVisible == true && self.panelDeviceID == deviceID {
+            if self.panel?.isVisible == true && self.panel?.isOnActiveSpace == true && self.panelDeviceID == deviceID {
                 self.manager.disconnect()
             } else {
                 self.openRemote(for: deviceID)
@@ -72,6 +72,15 @@ final class AppController: NSObject, NSMenuDelegate {
         log.error("openRemote: targetID=\(targetID ?? "nil", privacy: .public) discoveredCount=\(discoveredCount, privacy: .public)")
         guard let targetID else {
             log.error("openRemote: no targetID, returning")
+            return
+        }
+
+        // The remote for this device is already up (maybe on another desktop or
+        // behind a full-screen app): bring it here instead of reconnecting into
+        // a window nobody can see.
+        if panel != nil, panelDeviceID == targetID, manager.connectionStatus != .disconnected {
+            log.error("openRemote: remote already open, bringing it to the current desktop")
+            bringPanelHere()
             return
         }
 
@@ -118,6 +127,13 @@ final class AppController: NSObject, NSMenuDelegate {
         // Remote closed + a reachable, paired last device → open it directly.
         // Everything else (remote open, right-click, no/unreachable last device)
         // falls back to the dropdown, as before.
+        // The remote is open but not on this desktop (another Space, a full-screen
+        // app): a left-click fetches it here rather than showing the menu.
+        if !wantsMenu, let panel, !panel.isOnActiveSpace || !panel.isVisible {
+            bringPanelHere()
+            return
+        }
+
         if !wantsMenu,
            panel?.isVisible != true,
            case .disconnected = manager.connectionStatus,
@@ -494,6 +510,8 @@ final class AppController: NSObject, NSMenuDelegate {
 
     private func showPanel() {
         if panel != nil {
+            // Never silently do nothing: an existing panel may be on another desktop.
+            bringPanelHere()
             return
         }
 
@@ -541,7 +559,9 @@ final class AppController: NSObject, NSMenuDelegate {
         panel.isFloatingPanel = alwaysOnTop
         panel.level = alwaysOnTop ? .statusBar : .normal
         panel.hidesOnDeactivate = false
-        panel.collectionBehavior = [.fullScreenAuxiliary]
+        // .moveToActiveSpace: ordering the panel front pulls it onto the desktop
+        // the user is on, instead of switching away or staying invisible.
+        panel.collectionBehavior = [.fullScreenAuxiliary, .moveToActiveSpace]
         if !alwaysOnTop {
             panel.styleMask.remove(.nonactivatingPanel)
             panel.syncActivationBehavior()
@@ -600,6 +620,21 @@ final class AppController: NSObject, NSMenuDelegate {
                 NSApp.activate(ignoringOtherApps: true)
                 panel.makeKeyAndOrderFront(nil)
             }
+        }
+    }
+
+    /// Show the already-open remote on the current desktop, in front.
+    private func bringPanelHere() {
+        guard let panel else { return }
+        panel.collectionBehavior.insert(.moveToActiveSpace)
+        if !panel.isOnActiveSpace || !panel.isVisible {
+            log.error("bringPanelHere: panel was off this desktop (onActiveSpace=\(panel.isOnActiveSpace, privacy: .public) visible=\(panel.isVisible, privacy: .public))")
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        panel.makeKeyAndOrderFront(nil)
+        if !isPointOnScreen(panel.frame.origin, panelSize: panel.frame.size), let screen = NSScreen.main {
+            let topLeft = MenuBarIconVisibility.fallbackTopLeft(visibleFrame: screen.visibleFrame, width: panel.frame.width)
+            panel.setFrameOrigin(NSPoint(x: topLeft.x, y: topLeft.y - panel.frame.height))
         }
     }
 
