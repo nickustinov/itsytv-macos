@@ -71,8 +71,8 @@ targets:
         PRODUCT_NAME: Itsytv
         GENERATE_INFOPLIST_FILE: false
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        MARKETING_VERSION: "1.8.0"
-        CURRENT_PROJECT_VERSION: "18001"
+        MARKETING_VERSION: "1.9.0"
+        CURRENT_PROJECT_VERSION: "19001"
         ENABLE_HARDENED_RUNTIME: true
       configs:
         Debug:

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.9.0
+
+- Bring the remote to the desktop you're on – with the remote open on another desktop or behind a full-screen app, clicking the menu bar icon, choosing the Apple TV in the menu or pressing its hotkey moved you back to the remote, or did nothing. The remote now comes to you, still connected, and moves back on screen if its saved position is off every display. The hotkey closes the remote only when it's open on the current desktop (#52, thanks @tetanus for the request and @Lemelson for the fix)
+
 ## 1.8.0
 
 - Hold keys like the buttons on the Siri Remote – holding esc goes to the Home screen, ⌫ opens Control Center and ↩ the context menu. A held key used to send a click for every key repeat, so a hold never reached the Apple TV (thanks @Lemelson)
