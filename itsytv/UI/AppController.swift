@@ -16,7 +16,7 @@ final class AppController: NSObject, NSMenuDelegate {
     private let iconLoader: AppIconLoader
     private var observation: AnyCancellable?
     private var panel: NSPanel?
-    private var panelDeviceID: String?
+    private var remoteWindow = RemoteWindow()
     private var keyboardMonitor: Any?
     private var keyHold: KeyHold?
     private var alwaysOnTopObserver: NSObjectProtocol?
@@ -43,16 +43,18 @@ final class AppController: NSObject, NSMenuDelegate {
         HotkeyManager.shared.unregisterAll()
         panel?.close()
         panel = nil
-        panelDeviceID = nil
+        remoteWindow.closed()
     }
 
     private func setupHotkeyHandler() {
         HotkeyManager.shared.reregisterAll()
         HotkeyManager.shared.onHotkeyPressed = { [weak self] deviceID in
             guard let self else { return }
-            if self.panel?.isVisible == true && self.panel?.isOnActiveSpace == true && self.panelDeviceID == deviceID {
+            let onCurrentDesktop = self.panel.map { $0.isVisible && $0.isOnActiveSpace } ?? false
+            switch self.remoteWindow.hotkey(deviceID, remoteOnCurrentDesktop: onCurrentDesktop) {
+            case .close:
                 self.manager.disconnect()
-            } else {
+            case .open:
                 self.openRemote(for: deviceID)
             }
         }
@@ -78,7 +80,7 @@ final class AppController: NSObject, NSMenuDelegate {
         // The remote for this device is already up (maybe on another desktop or
         // behind a full-screen app): bring it here instead of reconnecting into
         // a window nobody can see.
-        if panel != nil, panelDeviceID == targetID, manager.connectionStatus != .disconnected {
+        if remoteWindow.pick(targetID, connectionOpen: manager.connectionStatus != .disconnected) == .bringForward {
             log.error("openRemote: remote already open, bringing it to the current desktop")
             bringPanelHere()
             return
@@ -94,6 +96,10 @@ final class AppController: NSObject, NSMenuDelegate {
     }
 
     private func connectAndShow(_ device: AppleTVDevice) {
+        // An open remote stays open and switches to this Apple TV: keep its position
+        // for the Apple TV it showed, then it's this one's remote.
+        if remoteWindow.isOpen, remoteWindow.deviceID != device.id { savePanelPosition() }
+        remoteWindow.connecting(to: device.id)
         manager.connect(to: device)
         if KeychainStorage.load(for: device.id) != nil {
             showPanel()
@@ -598,7 +604,7 @@ final class AppController: NSObject, NSMenuDelegate {
         }
 
         self.panel = panel
-        self.panelDeviceID = manager.connectedDeviceID
+        if let deviceID = manager.connectedDeviceID { remoteWindow.opened(for: deviceID) }
         installKeyboardMonitor()
 
         // Observe "Always on top" toggle changes while panel is open
@@ -647,7 +653,7 @@ final class AppController: NSObject, NSMenuDelegate {
         savePanelPosition()
         panel?.close()
         panel = nil
-        panelDeviceID = nil
+        remoteWindow.closed()
     }
 
     private func savePanelPosition() {
@@ -655,8 +661,8 @@ final class AppController: NSObject, NSMenuDelegate {
             log.debug("save: no panel frame")
             return
         }
-        guard let deviceID = panelDeviceID else {
-            log.debug("save: no panelDeviceID")
+        guard let deviceID = remoteWindow.deviceID else {
+            log.debug("save: the remote shows no Apple TV")
             return
         }
         // Save top-left corner (x, maxY) — the visual anchor point.
@@ -1096,7 +1102,7 @@ extension AppController: NSWindowDelegate {
                 manager.disconnect()
             }
             panel = nil
-            panelDeviceID = nil
+            remoteWindow.closed()
         }
     }
 }

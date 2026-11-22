@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.9.1
+
+- Fix switching between Apple TVs with the remote open – after one switch, choosing the first Apple TV again only brought the remote to the front instead of connecting to it, and its hotkey closed the remote. After a switch, the remote's position is now also saved for the Apple TV it shows, not the first one (thanks James)
+
 ## 1.9.0
 
 - Bring the remote to the desktop you're on – with the remote open on another desktop or behind a full-screen app, clicking the menu bar icon, choosing the Apple TV in the menu or pressing its hotkey moved you back to the remote, or did nothing. The remote now comes to you, still connected, and moves back on screen if its saved position is off every display. The hotkey closes the remote only when it's open on the current desktop (#52, thanks @tetanus for the request and @Lemelson for the fix)
