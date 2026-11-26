@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.10.0
+
+- Add "Close when clicking outside" to the remote's ⋯ menu – with it on, a click anywhere outside the remote closes it, as ⌘W does. Clicks on the remote, its menus and the menu bar icon don't count. Off by default (#68, thanks @Yell0whead)
+- New menu bar icon – a remote's clickpad instead of the TV, so it reads as a remote and fits in with the other icons in the menu bar (#69, thanks @Yell0whead for the request and @stavr0cks for the icon)
+
 ## 1.9.1
 
 - Fix switching between Apple TVs with the remote open – after one switch, choosing the first Apple TV again only brought the remote to the front instead of connecting to it, and its hotkey closed the remote. After a switch, the remote's position is now also saved for the Apple TV it shows, not the first one (thanks James)

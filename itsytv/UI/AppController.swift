@@ -18,6 +18,7 @@ final class AppController: NSObject, NSMenuDelegate {
     private var panel: NSPanel?
     private var remoteWindow = RemoteWindow()
     private var keyboardMonitor: Any?
+    private var clickOutsideMonitor: Any?
     private var keyHold: KeyHold?
     private var alwaysOnTopObserver: NSObjectProtocol?
 
@@ -34,6 +35,7 @@ final class AppController: NSObject, NSMenuDelegate {
 
     func cleanup() {
         removeKeyboardMonitor()
+        removeClickOutsideMonitor()
         if let observer = alwaysOnTopObserver {
             NotificationCenter.default.removeObserver(observer)
             alwaysOnTopObserver = nil
@@ -50,14 +52,18 @@ final class AppController: NSObject, NSMenuDelegate {
         HotkeyManager.shared.reregisterAll()
         HotkeyManager.shared.onHotkeyPressed = { [weak self] deviceID in
             guard let self else { return }
-            let onCurrentDesktop = self.panel.map { $0.isVisible && $0.isOnActiveSpace } ?? false
-            switch self.remoteWindow.hotkey(deviceID, remoteOnCurrentDesktop: onCurrentDesktop) {
+            switch self.remoteWindow.hotkey(deviceID, remoteOnCurrentDesktop: self.remoteOnCurrentDesktop) {
             case .close:
                 self.manager.disconnect()
             case .open:
                 self.openRemote(for: deviceID)
             }
         }
+    }
+
+    /// The remote is open and on the desktop the user is on.
+    private var remoteOnCurrentDesktop: Bool {
+        panel.map { $0.isVisible && $0.isOnActiveSpace } ?? false
     }
 
     private var pendingOpenDeviceID: String?
@@ -110,11 +116,11 @@ final class AppController: NSObject, NSMenuDelegate {
 
     private func setupStatusItem() {
         if let button = statusItem.button {
-            if let icon = Bundle.main.image(forResource: "MenuBarIcon") {
-                icon.isTemplate = true
-                icon.size = NSSize(width: 18, height: 18)
-                button.image = icon
-            }
+            // A remote's clickpad: a template image in the asset catalog (vector, 18 × 18), so it takes
+            // the menu bar's colour.
+            let image = NSImage(named: "MenuBarIcon")
+            image?.accessibilityDescription = "Itsytv"
+            button.image = image
             // Handle clicks ourselves instead of attaching the menu permanently:
             // a left-click while the remote is closed jumps straight to the last
             // device, and one while it's open on another desktop brings it here;
@@ -606,6 +612,7 @@ final class AppController: NSObject, NSMenuDelegate {
         self.panel = panel
         if let deviceID = manager.connectedDeviceID { remoteWindow.opened(for: deviceID) }
         installKeyboardMonitor()
+        installClickOutsideMonitor()
 
         // Observe "Always on top" toggle changes while panel is open
         alwaysOnTopObserver = NotificationCenter.default.addObserver(
@@ -646,6 +653,7 @@ final class AppController: NSObject, NSMenuDelegate {
 
     private func dismissPanel() {
         removeKeyboardMonitor()
+        removeClickOutsideMonitor()
         if let observer = alwaysOnTopObserver {
             NotificationCenter.default.removeObserver(observer)
             alwaysOnTopObserver = nil
@@ -716,6 +724,26 @@ final class AppController: NSObject, NSMenuDelegate {
             keyboardMonitor = nil
         }
         releaseHeldKey(reason: "monitor removed")
+    }
+
+    /// "Close when clicking outside" (`CloseOnClickOutside`). A global monitor only sees clicks
+    /// in other apps. It needs no Accessibility permission – that's only for watching keys.
+    private func installClickOutsideMonitor() {
+        removeClickOutsideMonitor()
+        clickOutsideMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
+            guard let self,
+                  CloseOnClickOutside(defaults: .standard).closes(remoteOnCurrentDesktop: self.remoteOnCurrentDesktop)
+            else { return }
+            log.info("click outside: closing the remote")
+            self.manager.disconnect()
+        }
+    }
+
+    private func removeClickOutsideMonitor() {
+        if let monitor = clickOutsideMonitor {
+            NSEvent.removeMonitor(monitor)
+            clickOutsideMonitor = nil
+        }
     }
 
     // MARK: - Held keys
@@ -860,6 +888,7 @@ struct PanelMenuButton: View {
     let deviceID: String
     let onUnpair: () -> Void
     @AppStorage("alwaysOnTop") private var alwaysOnTop = true
+    @AppStorage(CloseOnClickOutside.key) private var closeOnClickOutside = false
     @AppStorage("showAppsSearch") private var showAppsSearch = false
     @AppStorage("showShortcutHints") private var showShortcutHints = false
     @AppStorage("showArtwork") private var showArtwork = true
@@ -869,6 +898,7 @@ struct PanelMenuButton: View {
     var body: some View {
         Menu {
             Toggle("Always on top", isOn: $alwaysOnTop)
+            Toggle("Close when clicking outside", isOn: $closeOnClickOutside)
             Toggle("Show app search", isOn: $showAppsSearch)
                 .keyboardShortcut("f", modifiers: .command)
             Toggle("Show artwork", isOn: $showArtwork)
@@ -1097,6 +1127,7 @@ extension AppController: NSWindowDelegate {
 
     func windowWillClose(_ notification: Notification) {
         if (notification.object as? NSPanel) === panel {
+            removeClickOutsideMonitor()
             savePanelPosition()
             if manager.connectionStatus != .disconnected {
                 manager.disconnect()

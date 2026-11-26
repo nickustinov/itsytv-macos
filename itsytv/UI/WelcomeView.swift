@@ -43,7 +43,7 @@ struct WelcomeView: View {
                 }
                 .padding(.top, 4)
             } else {
-                Text("Click the TV icon at the top of your screen to pick your Apple TV and pair it.")
+                Text("Click the remote icon at the top of your screen to pick your Apple TV and pair it.")
                     .multilineTextAlignment(.center)
                 Text("Can’t see the icon? Your menu bar may be full, or Itsytv is turned off in System Settings → Menu Bar. Open Itsytv again from Spotlight or Finder and it opens at the top of your screen.")
                     .font(.callout)

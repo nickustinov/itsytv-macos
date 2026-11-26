@@ -94,7 +94,7 @@ If the remote panel closes on its own shortly after connecting, your Apple TV's 
 
 ### Nothing happens when I launch the app
 
-Itsytv is a menu bar app – it lives in the top-right area of your screen as a small TV icon, not in the Dock. On MacBooks with a notch, macOS hides menu bar icons that don't fit behind the notch – silently, with no warning. If your menu bar is crowded, the itsytv icon may be there but invisible.
+Itsytv is a menu bar app – it lives in the top-right area of your screen as a small remote icon, not in the Dock. On MacBooks with a notch, macOS hides menu bar icons that don't fit behind the notch – silently, with no warning. If your menu bar is crowded, the itsytv icon may be there but invisible.
 
 To fix this, hold **Cmd** and drag any icons you don't need off the menu bar. Once itsytv appears, Cmd-drag it to the right so it stays visible.
 
